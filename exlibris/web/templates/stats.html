@@ -1,1 +1,7 @@
-<!doctype html><title>{{ title }}</title><h1>stats</h1>
+{% extends "base.html" %}
+{% block title %}Stats{% endblock %}
+{% block content %}
+<h1>Stats</h1>
+{% include "_stats_body.html" %}
+{% endblock %}
+{% block scripts %}<script src="/static/vendor/echarts.min.js"></script><script src="/static/stats.js?v={{ version }}"></script>{% endblock %}

@@ -1,0 +1,21 @@
+{# Browse controls; browse.js renders books into #books. private=false hides rooms and loans. #}
+<div class="browse" id="browse-controls">
+  <div class="seg" role="group" aria-label="View">
+    <button type="button" data-view="covers" aria-label="Covers" title="Covers"><svg class="i"><use href="#i-grid"/></svg></button>
+    <button type="button" data-view="list" aria-label="List" title="List"><svg class="i"><use href="#i-list"/></svg></button>
+  </div>
+  <label>Group by
+    <select id="groupby">
+      <option value="">Nothing</option>
+      <option value="author">Author</option>
+      <option value="genre">Genre</option>
+      <option value="series">Series</option>
+      <option value="decade">Decade published</option>
+      <option value="format">Format</option>
+      {% if private %}<option value="location">Room</option>{% endif %}
+    </select>
+  </label>
+  <span class="muted small" id="shown"></span>
+</div>
+<div class="chips" id="chips" aria-label="Filters"></div>
+<div id="books"></div>

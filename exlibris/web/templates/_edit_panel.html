@@ -1,0 +1,33 @@
+<div class="sheet-wrap" id="edit" hidden>
+  <form class="sheet" id="editform" role="dialog" aria-modal="true" aria-labelledby="edit-h" novalidate>
+    <div class="head"><h2 id="edit-h">Edit book</h2>
+      <button type="button" class="btn quiet" data-close aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></div>
+    <div class="coverbox"><div id="edit-cover"></div>
+      <div><label class="btn" for="coverfile" style="margin:0;color:var(--ink)">Change cover</label>
+        <input type="file" id="coverfile" accept="image/*" hidden>
+        <p class="muted small" style="margin:6px 0 0">Take a photo or pick an image.</p></div></div>
+    <div class="grid2">
+      <div class="full"><label for="f-title">Title</label><input id="f-title" name="title" required></div>
+      <div class="full"><label for="f-authors">Authors</label><input id="f-authors" name="authors" placeholder="Separate with commas"></div>
+      <div><label for="f-year">Year</label><input id="f-year" name="year" inputmode="numeric"></div>
+      <div><label for="f-pages">Pages</label><input id="f-pages" name="pages" inputmode="numeric"></div>
+      <div><label for="f-isbn">ISBN</label><input id="f-isbn" name="isbn" inputmode="numeric"></div>
+      <div><label for="f-format">Format</label><input id="f-format" name="format" list="formats"></div>
+      <div class="full"><label for="f-publisher">Publisher</label><input id="f-publisher" name="publisher"></div>
+      <div class="full"><label for="f-genre">Genre</label><input id="f-genre" name="genre" list="genres" placeholder="Pick or type your own"></div>
+      <div><label for="f-series">Series</label><input id="f-series" name="series"></div>
+      <div><label for="f-series_index">Number in series</label><input id="f-series_index" name="series_index" inputmode="decimal"></div>
+      <div class="full"><label for="f-location">Room</label><input id="f-location" name="location" list="rooms"></div>
+      <div><label for="f-lent_to">Lent to</label><input id="f-lent_to" name="lent_to" placeholder="Nobody"></div>
+      <div><label for="f-lent_on">Since</label><input id="f-lent_on" name="lent_on" type="date"></div>
+      <div class="full"><label for="f-notes">Notes</label><textarea id="f-notes" name="notes" rows="3"></textarea></div>
+    </div>
+    <p class="err" id="edit-err" role="alert"></p>
+    <div class="bar" style="margin-top:16px">
+      <button type="submit" class="btn primary">Save</button>
+      <button type="button" class="btn" id="refresh" title="Fill empty fields from Open Library by ISBN">Refresh from Open Library</button>
+      <button type="button" class="btn danger" id="remove" style="margin-left:auto">Remove</button>
+    </div>
+    <p class="muted small" id="edit-meta"></p>
+  </form>
+</div>

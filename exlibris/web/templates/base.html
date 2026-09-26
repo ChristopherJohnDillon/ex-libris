@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A2535" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F3EC" media="(prefers-color-scheme: light)">
+{% if public %}<meta name="robots" content="noindex, nofollow">{% endif %}
+<title>{% block title %}{{ title }}{% endblock %} · Ex Libris</title>
+<link rel="stylesheet" href="/static/app.css?v={{ version }}">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+</head>
+<body data-private="{{ '0' if public else '1' }}" {% block body_attrs %}{% endblock %}>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M6 2h11a2 2 0 0 1 2 2v14a1 1 0 0 1-1 1H7a1 1 0 0 0 0 2h11v2H7a3 3 0 0 1-3-3V4a2 2 0 0 1 2-2Zm0 2v13.2c.3-.1.6-.2 1-.2h10V4H6Zm2 2h7v2H8V6Z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10h3v10H4Zm6 0V4h3v16h-3Zm6 0v-7h3v7h-3Z"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 5a2 2 0 0 1 2-2h3v2H5v3H3V5Zm13-2h3a2 2 0 0 1 2 2v3h-2V5h-3V3ZM3 16h2v3h3v2H5a2 2 0 0 1-2-2v-3Zm16 0h2v3a2 2 0 0 1-2 2h-3v-2h3v-3ZM7 7h2v10H7V7Zm3 0h1v10h-1V7Zm2 0h2v10h-2V7Zm3 0h2v10h-2V7Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.8 4.8-1.4 1.4-4.8-4.8A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm2.3 2.6 1.4 1.4-4.2 4.2-2.4-2.4 1.4-1.4 1 1 2.8-2.8Z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 5h3v3H4V5Zm5 0h11v3H9V5ZM4 10.5h3v3H4v-3Zm5 0h11v3H9v-3ZM4 16h3v3H4v-3Zm5 0h11v3H9v-3Z"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6 10.6 12 5 6.4 6.4 5Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.4 6 6 6-6 6L8 16.6l4.6-4.6L8 7.4 9.4 6Z"/></symbol>
+</svg>
+<header class="top"><div class="in">
+  <a class="brand" href="/"><svg class="i"><use href="#i-book"/></svg>{{ title }}</a>
+  <nav aria-label="Library">
+    <a href="/"{% if page == "books" %} aria-current="page"{% endif %}><svg class="i"><use href="#i-grid"/></svg><span>Books</span></a>
+    <a href="/stats"{% if page == "stats" %} aria-current="page"{% endif %}><svg class="i"><use href="#i-chart"/></svg><span>Stats</span></a>
+    {% if not public %}
+    <a href="/scan?mode=add"{% if page == "scan" %} aria-current="page"{% endif %}><svg class="i"><use href="#i-scan"/></svg><span>Scan</span></a>
+    <a href="/scan?mode=check"><svg class="i"><use href="#i-check"/></svg><span>Do I own this?</span></a>
+    {% endif %}
+  </nav>
+</div></header>
+<main class="{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
+<footer>Ex Libris {{ version }} · book details and covers from <a href="https://openlibrary.org" rel="noopener">Open Library</a>{% if settings().google_books and not public %} and Google Books{% endif %}</footer>
+<script src="/static/app.js?v={{ version }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

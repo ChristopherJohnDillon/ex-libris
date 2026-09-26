@@ -1,1 +1,16 @@
-<!doctype html><title>{{ title }}</title><h1>author</h1>
+{% extends "base.html" %}
+{% block title %}{{ name or "Author" }}{% endblock %}
+{% block body_attrs %}data-page="author" data-author="{{ name }}"{% endblock %}
+{% block content %}
+<p class="small"><a href="/">← All books</a></p>
+<h1>{{ name or "No author given" }}</h1>
+<p class="muted">{{ books|length }} book{{ "s" if books|length != 1 }} on the shelf</p>
+<ul class="books">{% for b in books %}
+  <li><a class="row" href="{{ base|default('') }}{{ book_href|default('/?book=') }}{{ b.id }}">{% if b.cover_url %}<img class="cover" src="{{ b.cover_url }}" alt="" loading="lazy">{% else %}<div class="spine" aria-hidden="true">{{ b.title[:1]|upper }}</div>{% endif %}
+    <div><div class="t">{{ b.title }}</div><div class="m">{{ [b.year, b.format, b.series]|select|join(", ") }}</div></div><span></span></a></li>
+{% endfor %}</ul>
+{% if private and name %}<h2>More by this author</h2>
+<p class="muted small">From Open Library, oldest first.</p>
+<ul class="books" id="more"><li class="muted" style="border:0">Loading…</li></ul>{% endif %}
+{% endblock %}
+{% block scripts %}{% if private %}<script src="/static/library.js?v={{ version }}"></script>{% endif %}{% endblock %}
