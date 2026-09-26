@@ -9,7 +9,8 @@
   const added = t => `Added${room() ? ` to ${room()}` : ""}: ${t}`;
 
   // ---- mode + settings ------------------------------------------------------
-  let mode = new URLSearchParams(location.search).get("mode") || store.get("xl.mode", "add");
+  const params = new URLSearchParams(location.search);
+  let mode = params.get("mode") || store.get("xl.mode", "add");
   if (!["check", "add"].includes(mode)) mode = "add";
   function setMode(m) {
     mode = m; document.body.classList.toggle("check", m === "check");
@@ -171,6 +172,9 @@
   });
 
   setMode(mode);
+  // /scan?mode=check&isbn=978... looks that ISBN up straight away (links, phone shortcuts)
+  const linked = normalise(params.get("isbn"));
+  if (linked) handle(linked);
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { $("#insecure").hidden = false; say("Camera unavailable here — type the ISBN below."); }
   else start();
 })();
