@@ -68,3 +68,8 @@ def test_static_files_are_served_and_js_parses(c):
 def test_home_page_has_scan_buttons(c):
     t = c.get("/").text
     assert 'class="btn primary" href="/scan?mode=add"' in t and 'href="/scan?mode=check"' in t
+
+
+def test_scanner_compares_editions_by_their_printing_year():
+    js = (STATIC / "scan.js").read_text()
+    assert "b.edition_year || b.year" in js and 'say(r.answer === "yes"' in js
