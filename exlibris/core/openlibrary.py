@@ -186,3 +186,24 @@ class Client:
 
 def client():
     return Client()
+
+
+def backfill_series(limit=200):
+    """Books whose cached edition names a series and which have none yet; each
+    book is looked at once, so a series cleared by hand stays cleared."""
+    from exlibris.core import db
+    with db.connect() as c:
+        rows = c.execute("SELECT id, isbn FROM books WHERE series IS NULL AND isbn IS NOT NULL AND series_checked IS NULL "
+                         "LIMIT ?", (limit,)).fetchall()
+    n = 0
+    for book_id, isbn in rows:
+        ed = cache_get("editions", isbn)
+        if ed is None:
+            continue
+        name, idx = series.parse(ed.get("series"))
+        fields = {"series_checked": 1}
+        if name:
+            fields.update(series=name, series_index=idx)
+            n += 1
+        books.set_fields(book_id, **fields)
+    return f"{n} series filled"
