@@ -28,6 +28,18 @@ def ol():
     return openlibrary.client()
 
 
+def with_first_published(row, client):
+    """An edition row's year is its printing until we know when the work first came out."""
+    if row.get("ol_key"):
+        try:
+            first = client.first_published(row["ol_key"])
+        except (openlibrary.Unavailable, AttributeError):
+            first = None
+        if first:
+            row = {**row, "year": first}
+    return row
+
+
 # ---- pages ----------------------------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
@@ -118,7 +130,7 @@ def refresh(book_id: int):
         raise HTTPException(502, "Open Library didn't answer. Try again in a moment.")
     if not ed:
         raise HTTPException(404, "Open Library doesn't know that ISBN.")
-    return books.fill_blanks(book_id, openlibrary.edition_row(ed, None, b["isbn"]))
+    return books.fill_blanks(book_id, with_first_published(openlibrary.edition_row(ed, None, b["isbn"]), ol()))
 
 
 @app.post("/api/books/{book_id}/cover", dependencies=WRITE)
@@ -149,6 +161,8 @@ def lookup(q: str):
             isbns, works = books.owned()
             if ed:
                 row = openlibrary.edition_row(ed, rows[0] if rows else None, isbn)
+                if not (rows and rows[0].get("year")):
+                    row = with_first_published(row, client)
                 return [{**row, "owned": isbn in isbns, "other_edition": isbn not in isbns and row["ol_key"] in works}]
             return [{**r, "owned": isbn in isbns, "other_edition": isbn not in isbns and r["owned"]} for r in rows[:1]]
         return client.search(q)
@@ -172,7 +186,7 @@ def own(raw: str):
         ed = None
     if not ed:
         return {"answer": "no", "isbn": isbn, "this": [], "others": [], "found": None, "unsure": True}
-    found = openlibrary.edition_row(ed, None, isbn)
+    found = with_first_published(openlibrary.edition_row(ed, None, isbn), ol())
     others = books.where("ol_key", found["ol_key"]) if found["ol_key"] else []
     return {"answer": "other" if others else "no", "isbn": isbn, "this": [], "others": others, "found": found}
 

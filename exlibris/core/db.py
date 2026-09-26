@@ -4,7 +4,7 @@ import sqlite3
 from contextlib import contextmanager
 from exlibris import config
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MIGRATIONS = {
     1: """
     CREATE TABLE books (
@@ -50,6 +50,10 @@ MIGRATIONS = {
         INSERT INTO books_fts(rowid, title, authors, isbn, publisher, notes)
         VALUES (new.id, new.title, new.authors, new.isbn, new.publisher, new.notes);
     END;
+    """,
+    2: """
+    ALTER TABLE books ADD COLUMN edition_year INTEGER;
+    ALTER TABLE books ADD COLUMN year_checked INTEGER;
     """,
 }
 

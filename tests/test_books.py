@@ -106,3 +106,10 @@ def test_locations_and_overdue_loans():
     books.update(a["id"], {"lent_to": "Sam", "lent_on": "2026-07-01"})
     assert books.locations() == [{"name": "Lounge", "n": 2}]
     assert [r["title"] for r in books.overdue_loans(day)] == ["A"]
+
+
+def test_edition_year_is_kept_editable_and_exported():
+    b = books.add({"title": "The Talented Mr. Ripley", "year": 1955, "edition_year": 2015})
+    assert (b["year"], b["edition_year"]) == (1955, 2015)
+    assert books.update(b["id"], {"edition_year": "1999"})["edition_year"] == 1999
+    assert "edition_year" in books.to_csv().splitlines()[0] and "edition_year" in books.PUBLIC_FIELDS

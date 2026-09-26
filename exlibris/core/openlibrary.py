@@ -95,7 +95,8 @@ def edition_row(ed, work=None, isbn=None):
     covers = [c for c in ed.get("covers") or [] if isinstance(c, int) and c > 0]
     name, idx = series.parse(ed.get("series"))
     pages = ed.get("number_of_pages")
-    return {"title": title, "authors": work.get("authors"), "year": year_of(ed.get("publish_date")) or work.get("year"),
+    printed = year_of(ed.get("publish_date"))
+    return {"title": title, "authors": work.get("authors"), "year": work.get("year") or printed, "edition_year": printed,
             "isbn": isbn, "publisher": (ed.get("publishers") or [None])[0] or work.get("publisher"),
             "cover_url": cover_path(covers[0]) if covers else work.get("cover_url"),
             "ol_key": works[0] if works else work.get("ol_key"), "edition_key": ed.get("key"),
@@ -174,6 +175,18 @@ class Client:
         _, works = books.owned()
         return [{**w, "owned": w["ol_key"] in works} for w in cached]
 
+    def first_published(self, work_key):
+        """The year a work first came out (not this printing), or None. Cached."""
+        cached = cache_get("first_published", work_key)
+        if cached is not None:
+            return cached.get("year")
+        docs = self._get(SEARCH, {"q": f"key:{work_key}", "fields": "key,first_publish_year", "limit": 1}).get("docs") or []
+        year = next((d.get("first_publish_year") for d in docs if d.get("key") == work_key), None)
+        if year is None:
+            year = year_of((self.work(work_key) or {}).get("first_publish_date"))
+        cache_put("first_published", work_key, {"year": year})
+        return year
+
     def cover_bytes(self, cover_id):
         self.pace()
         try:
@@ -207,3 +220,25 @@ def backfill_series(limit=200):
             n += 1
         books.set_fields(book_id, **fields)
     return f"{n} series filled"
+
+
+def backfill_years(limit=100, client_=None):
+    """Books whose year came from their printing: set the year the work first came
+    out. Each book is looked at once; a year typed by hand is never touched."""
+    from exlibris.core import db
+    c = client_ or client()
+    with db.connect() as conn:
+        rows = conn.execute("SELECT id, ol_key, year, edition_year FROM books WHERE ol_key IS NOT NULL AND year_checked IS NULL "
+                            "LIMIT ?", (limit,)).fetchall()
+    n = 0
+    for book_id, key, year, edition_year in rows:
+        try:
+            first = c.first_published(key)
+        except Unavailable:
+            continue                                   # try again next time
+        fields = {"year_checked": 1}
+        if first and (year is None or year == edition_year or year > first):
+            fields.update(year=first, edition_year=edition_year or year)
+            n += 1
+        books.set_fields(book_id, **fields)
+    return f"{n} first-published years set"
