@@ -2,17 +2,17 @@ import datetime as dt
 import pytest
 from exlibris.core import books, openlibrary, series, stats
 
-PAPERBACK = {"title": "Harry Potter and the Philosopher's Stone", "publishers": ["Bloomsbury"], "publish_date": "2014-09-01",
-             "covers": [15159585, -1], "works": [{"key": "/works/OL82563W"}], "physical_format": "paperback",
-             "number_of_pages": 352, "series": ["Harry Potter -- 1"], "key": "/books/OL59004869M"}
+PAPERBACK = {"title": "The Talented Mr. Ripley", "publishers": ["Virago"], "publish_date": "2014-09-01",
+             "covers": [15159585, -1], "works": [{"key": "/works/OL59434W"}], "physical_format": "paperback",
+             "number_of_pages": 352, "series": ["Ripliad -- 1"], "key": "/books/OL59004869M"}
 
 
 def test_edition_row_uses_the_editions_own_details():
-    row = openlibrary.edition_row(PAPERBACK, {"authors": "J. K. Rowling", "title": "HP"}, "9781408855652")
-    assert row == {"title": "Harry Potter and the Philosopher's Stone", "authors": "J. K. Rowling", "year": 2014,
-                   "isbn": "9781408855652", "publisher": "Bloomsbury", "cover_url": "/cover/15159585",
-                   "ol_key": "/works/OL82563W", "edition_key": "/books/OL59004869M", "format": "Paperback",
-                   "pages": 352, "series": "Harry Potter", "series_index": 1}
+    row = openlibrary.edition_row(PAPERBACK, {"authors": "Patricia Highsmith", "title": "The Talented Mr. Ripley"}, "9781850891840")
+    assert row == {"title": "The Talented Mr. Ripley", "authors": "Patricia Highsmith", "year": 2014,
+                   "isbn": "9781850891840", "publisher": "Virago", "cover_url": "/cover/15159585",
+                   "ol_key": "/works/OL59434W", "edition_key": "/books/OL59004869M", "format": "Paperback",
+                   "pages": 352, "series": "Ripliad", "series_index": 1}
 
 
 class FakeHTTP:
@@ -30,10 +30,10 @@ class FakeHTTP:
 
 
 def test_edition_is_cached():
-    http = FakeHTTP({"/isbn/9781408855652": PAPERBACK})
+    http = FakeHTTP({"/isbn/9781850891840": PAPERBACK})
     c = openlibrary.Client(http_get=http, sleep=lambda s: None)
-    assert c.edition("9781408855652")["physical_format"] == "paperback"
-    c.edition("9781408855652")
+    assert c.edition("9781850891840")["physical_format"] == "paperback"
+    c.edition("9781850891840")
     assert len(http.calls) == 1
 
 
@@ -42,7 +42,7 @@ def test_unknown_isbn_is_none_and_errors_raise_unavailable():
     assert c.edition("9780000000002") is None
     down = openlibrary.Client(http_get=FakeHTTP({"/isbn/": OSError("down")}), sleep=lambda s: None)
     with pytest.raises(openlibrary.Unavailable):
-        down.edition("9781408855652")
+        down.edition("9781850891840")
 
 
 def test_requests_are_paced():
@@ -74,7 +74,7 @@ def test_user_agent_names_the_project(monkeypatch):
     (["Court of Thorns and Roses #2"], ("Court of Thorns and Roses", 2)),
     (["A Court of Thorns and Roses Series 1"], ("A Court of Thorns and Roses", 1)),
     (["Discworld ; 3"], ("Discworld", 3)), (["(Discworld, #3)"], ("Discworld", 3)),
-    (["Harry Potter -- 1"], ("Harry Potter", 1)), (["Maximum Ride"], ("Maximum Ride", None)),
+    (["Ripliad -- 1"], ("Ripliad", 1)), (["Maximum Ride"], ("Maximum Ride", None)),
     ("Discworld #2.5", ("Discworld", 2.5)),
     (["Collins Classics"], (None, None)), (["Virago modern classics -- 4"], (None, None)),
     (["The Penguin classics L210"], (None, None)), (["Collection Folio -- 3181"], (None, None)),

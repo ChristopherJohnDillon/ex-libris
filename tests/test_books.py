@@ -4,10 +4,10 @@ from exlibris.core import books
 
 
 def test_editions_are_separate_copies():
-    books.add({"title": "HP", "ol_key": "/works/W1", "isbn": "9780747532699", "format": "Hardcover"})
-    books.add({"title": "HP", "ol_key": "/works/W1", "isbn": "9781408855652", "format": "Paperback"})
+    books.add({"title": "The Talented Mr. Ripley", "ol_key": "/works/W1", "isbn": "9780349006963", "format": "Hardcover"})
+    books.add({"title": "The Talented Mr. Ripley", "ol_key": "/works/W1", "isbn": "9781850891840", "format": "Paperback"})
     with pytest.raises(books.Duplicate):
-        books.add({"title": "again", "isbn": "9781408855652"})
+        books.add({"title": "again", "isbn": "9781850891840"})
     books.add({"title": "Dune", "ol_key": "/works/D"})
     with pytest.raises(books.Duplicate):                    # no ISBN: the edition is unknown, one per work
         books.add({"title": "Dune", "ol_key": "/works/D"})
@@ -22,8 +22,8 @@ def test_update_validates_and_normalises():
         books.update(b["id"], {"title": " "})
     with pytest.raises(ValueError):
         books.update(b["id"], {"cover_url": "https://evil"})
-    got = books.update(b["id"], {"year": "1965", "isbn": "0-7475-3269-9", "format": "paperback", "notes": "  signed "})
-    assert (got["year"], got["isbn"], got["format"], got["notes"]) == (1965, "9780747532699", "Paperback", "signed")
+    got = books.update(b["id"], {"year": "1965", "isbn": "0-3490-0696-2", "format": "paperback", "notes": "  signed "})
+    assert (got["year"], got["isbn"], got["format"], got["notes"]) == (1965, "9780349006963", "Paperback", "signed")
     assert books.update(999, {"notes": "x"}) is None
 
 
@@ -48,10 +48,10 @@ def test_lending_dates():
 
 
 def test_search_prefix_order_and_public_mode():
-    books.add({"title": "Harry Potter", "authors": "J. K. Rowling", "notes": "signed first edition"})
+    books.add({"title": "The Talented Mr. Ripley", "authors": "Patricia Highsmith", "notes": "signed first edition"})
     books.add({"title": "Emma", "authors": "Jane Austen"})
-    assert [b["title"] for b in books.search()["books"]] == ["Harry Potter", "Emma"]       # order added
-    assert books.search("harr pot")["books"][0]["title"] == "Harry Potter"
+    assert [b["title"] for b in books.search()["books"]] == ["The Talented Mr. Ripley", "Emma"]       # order added
+    assert books.search("tal rip")["books"][0]["title"] == "The Talented Mr. Ripley"
     assert books.search("signed")["books"] and books.search("signed", public=True)["books"] == []
     assert books.search('"; DROP TABLE books; --')["total"] == 2                            # no injection
 
@@ -74,9 +74,9 @@ def test_authors_of(text, expected):
 
 
 def test_isbn_helpers():
-    assert books.isbn13("0-7475-3269-X") is None or books.isbn13("0-7475-3269-X").startswith("978")
-    assert books.isbn13("978-0-7475-3269-9") == "9780747532699"
-    assert books.is_isbn13("9780747532699") and not books.is_isbn13("9780747532698")
+    assert books.isbn13("0-3490-0696-0") is None or books.isbn13("0-3490-0696-0").startswith("978")
+    assert books.isbn13("978-0-3490-0696-3") == "9780349006963"
+    assert books.is_isbn13("9780349006963") and not books.is_isbn13("9780747532698")
 
 
 def test_csv_round_trip_and_import_preview():
