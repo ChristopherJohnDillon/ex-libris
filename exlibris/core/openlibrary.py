@@ -70,10 +70,11 @@ def cache_get(kind, key, ttl=None):
 
 
 def cache_put(kind, key, value):
+    import tempfile
     p = _cache_path(kind, key)
-    tmp = p.with_suffix(".tmp")
-    tmp.write_text(json.dumps(value))
-    os.replace(tmp, p)
+    with tempfile.NamedTemporaryFile("w", dir=p.parent, suffix=".tmp", delete=False) as tmp:
+        tmp.write(json.dumps(value))
+    os.replace(tmp.name, p)
     return value
 
 
@@ -215,11 +216,12 @@ def backfill_series(limit=200):
         if ed is None:
             continue
         name, idx = series.parse(ed.get("series"))
-        fields = {"series_checked": 1}
-        if name:
-            fields.update(series=name, series_index=idx)
-            n += 1
-        books.set_fields(book_id, **fields)
+        with db.connect() as conn:                       # never over a series set (or cleared) meanwhile
+            if name:
+                n += conn.execute("UPDATE books SET series = ?, series_index = ?, series_checked = 1 WHERE id = ? "
+                                  "AND series IS NULL AND series_checked IS NULL", (name, idx, book_id)).rowcount
+            else:
+                conn.execute("UPDATE books SET series_checked = 1 WHERE id = ? AND series_checked IS NULL", (book_id,))
     return f"{n} series filled"
 
 
@@ -237,12 +239,13 @@ def backfill_years(limit=100, client_=None):
             first = c.first_published(key)
         except Unavailable:
             continue                                   # try again next time
-        fields = {"year_checked": 1}
         printed = edition_year or year
         if first and printed and printed - first > MAX_GAP_YEARS:
             first = None                               # Open Library noise (a 1600 "first edition" of a 2019 cookbook)
-        if first and (year is None or year == edition_year or year > first):
-            fields.update(year=first, edition_year=edition_year or year)
-            n += 1
-        books.set_fields(book_id, **fields)
+        with db.connect() as conn:                     # never over a year typed meanwhile (that sets year_checked)
+            if first and (year is None or year == edition_year or year > first):
+                n += conn.execute("UPDATE books SET year = ?, edition_year = ?, year_checked = 1 WHERE id = ? "
+                                  "AND year_checked IS NULL", (first, edition_year or year, book_id)).rowcount
+            else:
+                conn.execute("UPDATE books SET year_checked = 1 WHERE id = ? AND year_checked IS NULL", (book_id,))
     return f"{n} first-published years set"

@@ -18,12 +18,14 @@ class Job:
 
 
 def default_jobs():
-    jobs = [Job("covers", 6 * 3600, covers.fill_missing),
+    jobs = [Job("cover files", 1800, covers.download_missing_files),
+            Job("covers", 6 * 3600, covers.fill_missing),
             Job("series", 3600, openlibrary.backfill_series),
             Job("years", 3600, openlibrary.backfill_years),
             Job("backup", 24 * 3600, backup.snapshot)]
     if ai.enabled():
         jobs.append(Job("genres", 2 * 3600, ai.fill_genres))
+        jobs.append(Job("fun facts", 24 * 3600, ai.refresh_fun_facts))       # writes a new card weekly
     return jobs
 
 

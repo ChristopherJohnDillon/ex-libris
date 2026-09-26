@@ -7,7 +7,8 @@ from fastapi import Body, Depends, FastAPI, File, HTTPException, Request, Respon
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from exlibris import config
-from exlibris.core import backup, books, covers, db, openlibrary, stats
+import anyio
+from exlibris.core import ai, backup, books, covers, db, openlibrary, stats
 from exlibris.web.common import HERE, add_security_headers, render, same_origin
 
 @asynccontextmanager
@@ -21,6 +22,9 @@ add_security_headers(app)
 app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
 WRITE = [Depends(same_origin)]
 COVER_NAME = re.compile(r"\d{1,12}|u\d{1,12}-[0-9a-f]{8}")
+# at most two cover downloads at once, in their own lane: a grid full of uncached
+# covers mustn't use up the worker threads both apps (and the health check) rely on
+COVER_FETCHES = anyio.CapacityLimiter(2)
 MAX_UPLOAD = 8 * 1024 * 1024
 
 
@@ -57,7 +61,7 @@ def scan(request: Request):
 def stats_page(request: Request):
     st = stats.stats()
     return render(request, "stats.html", {"st": st, "hl": stats.highlights(st), "private": True, "page": "stats",
-                                          "author_base": "/author?name="})
+                                          "author_base": "/author?name=", "fun": ai.fun_text()})
 
 
 @app.get("/author", response_class=HTMLResponse)
@@ -226,26 +230,30 @@ def backup_zip():
 
 
 # ---- covers + health ------------------------------------------------------------------
+def _fetch_cover(cover_id):
+    try:
+        return ol().cover_bytes(cover_id)
+    except (openlibrary.Unavailable, AttributeError):
+        return None
+
+
 @app.get("/cover/{name}")
-def cover(name: str):
+async def cover(name: str):
     if not COVER_NAME.fullmatch(name):
         raise HTTPException(404, "no cover")
     path = covers.covers_dir() / f"{name}.jpg"
     if not path.exists() and name.isdigit():
-        try:
-            data = ol().cover_bytes(int(name))
-        except (openlibrary.Unavailable, AttributeError):
-            data = None
+        with db.connect() as c:                  # only covers a book uses: not a proxy for any Open Library id
+            used = c.execute("SELECT 1 FROM books WHERE cover_url = ?", (f"/cover/{name}",)).fetchone()
+        data = await anyio.to_thread.run_sync(_fetch_cover, int(name), limiter=COVER_FETCHES) if used else None
         if not data:
             raise HTTPException(404, "no cover")
-        tmp = path.with_suffix(".part")
-        tmp.write_bytes(data)
-        tmp.replace(path)
+        covers.store_open_library_cover(int(name), data)
     if not path.exists():
         raise HTTPException(404, "no cover")
     return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=31536000"})
 
 
 @app.get("/healthz")
-def healthz():
+async def healthz():
     return {"ok": True}

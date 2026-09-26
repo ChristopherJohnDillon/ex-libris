@@ -83,7 +83,7 @@
   - with AI, a weekly "fun facts" card on 8080 only.
 
 **Looks**
-- The Observatory-style dark theme from the original (deep navy, International Orange highlights), plus a matching **light theme** that follows the device setting.
+- A dark theme (deep navy, International Orange highlights), plus a matching **light theme** that follows the device setting.
 - Built for phone first, and wide screens use the space (centred, columns).
 - No sidebar: a slim top bar with **Books · Stats · Scan · Do I own this?**.
 
@@ -101,7 +101,7 @@
 - **Fields:** only public fields are sent, via a single serialiser: title, authors, year, format, publisher, ISBN, cover, genre, series, pages. Notes, room, loans and dates are never sent.
 - **Covers:** only those referenced by a book, and never fetched on a visitor's behalf.
 - **Links:** nothing links to 8080.
-- **Headers:** `noindex`, a strict CSP (scripts from self only), `frame-ancestors 'none'`, and caching kept private.
+- **Headers:** `noindex`, a strict CSP (scripts from self only), `frame-ancestors 'none'`, and short (60 s) caching, since the data is public.
 - **Tests:**
   - enumerate every route of the public app and assert that none mutates;
   - POST, PUT, PATCH and DELETE on every path are refused;
@@ -150,7 +150,7 @@ Dockerfile, compose.yaml, README.md, LICENSE, CHANGELOG.md, docs/
 - **8080 has no login by design.** Recommended: Cloudflare Tunnel + Access (free, gives https so the camera works); alternatively Tailscale or a VPN; at the very least, home network only.
 - **8081 is safe to share:** read-only, with public fields only.
 - **Writes on 8080:** JSON or an `HX-Request` header plus a same-origin check, so a hostile website can't forge changes from the user's browser.
-- **Stored text is escaped everywhere.** Chart labels go through `encodeHTML`, a lesson from the original.
+- **Stored text is escaped everywhere.** Chart labels go through `encodeHTML` too, since Open Library data is editable by anyone.
 - **Camera:** it needs https or localhost. The README explains the options.
 
 ## 6. Privacy of the release (hard rule)

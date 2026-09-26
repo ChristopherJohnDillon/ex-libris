@@ -94,3 +94,49 @@ def fun_facts(facts, post=None):
     except Exception:
         return None
     return text or None
+
+
+FUN_EVERY = 7 * 86400
+
+
+def _fun_path():
+    return config.settings().data_dir / "cache" / "fun_facts.json"
+
+
+def fun_text():
+    """The latest fun-facts card, or None."""
+    try:
+        return json.loads(_fun_path().read_text()).get("text")
+    except (OSError, ValueError):
+        return None
+
+
+def refresh_fun_facts(post=None, now=None):
+    """Weekly: ask the model for a few playful lines about the collection, from
+    numbers worked out in code. True if a new card was written."""
+    import os
+    import time
+    from exlibris.core import stats
+    if not enabled() and post is None:
+        return False
+    now = time.time() if now is None else now
+    try:
+        last = json.loads(_fun_path().read_text()).get("ts")
+    except (OSError, ValueError):
+        last = None                                  # never made one: make it now
+    if last is not None and now - last < FUN_EVERY:
+        return False
+    st = stats.stats(public=True)
+    if not st["tiles"]["books"]:
+        return False
+    facts = {"totals": st["tiles"], "top_genres": st["by_genre"][:6], "top_authors": st["top_authors"][:6],
+             "decades": st["by_decade"], "highlights": [{h["label"]: h["value"], "detail": h["detail"]} for h in stats.highlights(st)]}
+    text = fun_facts(facts, post=post)
+    if not text:
+        return False
+    p = _fun_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(f".{p.name}.{os.getpid()}")
+    tmp.write_text(json.dumps({"ts": now, "text": text}))
+    os.replace(tmp, p)
+    return True

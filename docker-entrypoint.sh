@@ -8,7 +8,8 @@ PGID="${PGID:-1000}"
 DATA="${EXLIBRIS_DATA:-/data}"
 if [ "$(id -u)" = "0" ]; then
   mkdir -p "$DATA"
-  if [ "$(stat -c %u "$DATA")" != "$PUID" ] || [ "$(stat -c %g "$DATA")" != "$PGID" ]; then
+  # anything inside not owned by PUID:PGID (e.g. a backup restored with sudo cp) gets fixed
+  if [ -n "$(find "$DATA" \( ! -user "$PUID" -o ! -group "$PGID" \) -print -quit 2>/dev/null)" ]; then
     chown -R "$PUID:$PGID" "$DATA" 2>/dev/null || echo "ex-libris: couldn't change owner of $DATA; continuing"
   fi
   exec setpriv --reuid="$PUID" --regid="$PGID" --clear-groups -- "$@"

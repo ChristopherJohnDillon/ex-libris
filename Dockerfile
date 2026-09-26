@@ -13,6 +13,6 @@ RUN pip install --no-compile . \
 VOLUME ["/data"]
 EXPOSE 8080 8081
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=4).status == 200 else 1)"
+  CMD python -c "import os,sys,urllib.request; p=os.environ.get('EXLIBRIS_PORT','8080'); sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{p}/healthz', timeout=4).status == 200 else 1)"
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["python", "-m", "exlibris"]

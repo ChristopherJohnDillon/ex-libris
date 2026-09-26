@@ -1,12 +1,14 @@
 """The SQLite database in the data folder: schema, versioned migrations, FTS."""
 import os
 import sqlite3
+import tempfile
 from contextlib import contextmanager
 from exlibris import config
 
 SCHEMA_VERSION = 2
 MIGRATIONS = {
     1: """
+    BEGIN;
     CREATE TABLE books (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
@@ -52,6 +54,7 @@ MIGRATIONS = {
     END;
     """,
     2: """
+    BEGIN;
     ALTER TABLE books ADD COLUMN edition_year INTEGER;
     ALTER TABLE books ADD COLUMN year_checked INTEGER;
     """,
@@ -67,10 +70,9 @@ def folders():
     try:
         for sub in ("", "covers", "cache", "backups"):
             (d / sub).mkdir(parents=True, exist_ok=True)
-        probe = d / ".write-test"
-        probe.write_text("ok")
-        probe.unlink()
-    except PermissionError:
+        with tempfile.NamedTemporaryFile(dir=d, prefix=".write-test-"):
+            pass
+    except OSError:
         raise SystemExit(f"Ex Libris can't write to the data folder {d}. Make it writable by the user the app runs as "
                          f"(uid {os.getuid()}), or set PUID/PGID to your own user (see README → Data folder).")
     return d
@@ -86,10 +88,8 @@ def init():
         row = conn.execute("SELECT version FROM schema_version").fetchone()
         current = row[0] if row else 0
         for v in range(current + 1, SCHEMA_VERSION + 1):
-            conn.executescript(MIGRATIONS[v])
-            conn.execute("DELETE FROM schema_version")
-            conn.execute("INSERT INTO schema_version VALUES (?)", (v,))
-            conn.commit()
+            # one transaction per step, version bump included: a crash leaves the old version intact
+            conn.executescript(MIGRATIONS[v] + f"\nDELETE FROM schema_version; INSERT INTO schema_version VALUES ({v}); COMMIT;")
     finally:
         conn.close()
 

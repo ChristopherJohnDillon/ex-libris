@@ -5,7 +5,8 @@ Checks every tracked file and every commit's author/committer against:
   * a private denylist (never committed): the file named by EXLIBRIS_DENYLIST,
     or the text in EXLIBRIS_DENYLIST_TEXT (how CI gets it, from a secret);
   * generic patterns: email addresses other than allowed no-reply/example ones,
-    and IPv4 addresses outside documentation/private examples.
+    and IPv4 addresses other than loopback and the documentation ranges.
+Commit authors, commit messages and tag messages are checked as well as files.
 Exit 0 when clean, 1 with a report otherwise.
 """
 import os
@@ -16,7 +17,8 @@ import sys
 ALLOWED_EMAILS = re.compile(r"(@users\.noreply\.github\.com|@example\.(com|org|net))$", re.I)
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-ALLOWED_IP = re.compile(r"^(127\.0\.0\.1|0\.0\.0\.0|192\.0\.2\.\d+|198\.51\.100\.\d+|203\.0\.113\.\d+|10\.0\.0\.\d+|192\.168\.1\.\d+)$")
+# loopback, "all interfaces" and the documentation ranges only (RFC 5737): a real home LAN address is flagged
+ALLOWED_IP = re.compile(r"^(127\.0\.0\.1|0\.0\.0\.0|192\.0\.2\.\d+|198\.51\.100\.\d+|203\.0\.113\.\d+)$")
 
 
 def denylist():
@@ -36,6 +38,12 @@ def authors(root):
     out = subprocess.run(["git", "log", "--all", "--format=%an <%ae>%n%cn <%ce>"], cwd=root,
                          capture_output=True, text=True).stdout
     return sorted(set(out.splitlines()))
+
+
+def messages(root):
+    commits = subprocess.run(["git", "log", "--all", "--format=%B"], cwd=root, capture_output=True, text=True).stdout
+    tags = subprocess.run(["git", "tag", "-l", "--format=%(contents)"], cwd=root, capture_output=True, text=True).stdout
+    return commits + "\n" + tags
 
 
 def scan_text(label, text, words):
@@ -67,6 +75,7 @@ def check(root, words=None):
         problems += scan_text(f"(file name) {f}", f, words)
     for a in authors(root):
         problems += scan_text(f"(commit author) {a.split('<')[0].strip()}", a, words)
+    problems += scan_text("(commit or tag messages)", messages(root), words)
     return problems
 
 
