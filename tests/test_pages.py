@@ -63,3 +63,8 @@ def test_static_files_are_served_and_js_parses(c):
     if shutil.which("node"):
         for f in ("app.js", "browse.js", "library.js", "scan.js", "stats.js", "import.js"):
             subprocess.run(["node", "--check", str(STATIC / f)], check=True)
+
+
+def test_home_page_has_scan_buttons(c):
+    t = c.get("/").text
+    assert 'class="btn primary" href="/scan?mode=add"' in t and 'href="/scan?mode=check"' in t
