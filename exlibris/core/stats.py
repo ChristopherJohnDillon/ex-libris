@@ -58,10 +58,14 @@ def stats(today=None, public=False):
 
 
 def _series(rows):
-    groups = {}
+    # "The Ripliad", "Ripliad" and "ripliad" are one series, named as first seen
+    import re
+    groups, names = {}, {}
     for r in rows:
         if r.get("series"):
-            groups.setdefault(r["series"], []).append(r.get("series_index"))
+            key = re.sub(r"^(the|a|an)\s+", "", r["series"].strip(), flags=re.I).casefold()
+            names.setdefault(key, r["series"].strip())
+            groups.setdefault(names[key], []).append(r.get("series_index"))
     return groups
 
 
