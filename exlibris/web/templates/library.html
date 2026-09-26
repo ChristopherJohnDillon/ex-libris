@@ -16,7 +16,9 @@
 {% for r in overdue %}<p class="banner warn small">“{{ r.title }}” lent to {{ r.lent_to }} since {{ r.lent_on }} ({{ r.days }} days).</p>{% endfor %}
 <div class="bar">
   <input type="search" id="q" placeholder="Search title, author, ISBN" autocomplete="off" aria-label="Search your books">
-  <button class="btn primary" id="toggle-add" aria-expanded="false" aria-controls="add"><svg class="i"><use href="#i-plus"/></svg> Add book</button>
+  <a class="btn primary" href="/scan?mode=add"><svg class="i"><use href="#i-scan"/></svg> Scan a book</a>
+  <a class="btn" href="/scan?mode=check" title="Scan a barcode to see if it's on your shelf"><svg class="i"><use href="#i-check"/></svg> Do I own this?</a>
+  <button class="btn" id="toggle-add" aria-expanded="false" aria-controls="add"><svg class="i"><use href="#i-plus"/></svg> Add by search</button>
 </div>
 <section id="add" class="panel" hidden>
   <div class="bar"><input type="search" id="lq" placeholder="Title, author or ISBN" autocomplete="off" aria-label="Look up a book"></div>
