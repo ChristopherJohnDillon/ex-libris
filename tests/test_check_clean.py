@@ -5,6 +5,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import check_clean  # noqa: E402
 
+# fake "personal" values, assembled at runtime so the repo itself stays clean
+FAKE_EMAIL = "real.person" + "@" + "gmail.com"
+FAKE_WORK = "real" + "@" + "company.co.uk"
+FAKE_IP = ".".join(["86", "12", "34", "56"])
+
 
 def _repo(tmp_path, files):
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
@@ -23,17 +28,17 @@ def test_clean_repo_passes(tmp_path):
 
 
 def test_denylisted_word_email_and_ip_are_caught(tmp_path):
-    r = _repo(tmp_path, {"a.txt": "runs on SecretPlace", "b.txt": "mail me at real.person@gmail.com", "c.txt": "host 86.12.34.56"})
+    r = _repo(tmp_path, {"a.txt": "runs on SecretPlace", "b.txt": f"mail me at {FAKE_EMAIL}", "c.txt": f"host {FAKE_IP}"})
     found = " ".join(check_clean.check(r, words=["secretplace"]))
-    assert "a.txt: contains a denylisted word" in found and "real.person@gmail.com" in found and "86.12.34.56" in found
+    assert "a.txt: contains a denylisted word" in found and FAKE_EMAIL in found and FAKE_IP in found
     assert "secretplace" not in found.lower().replace("contains a denylisted word", "")      # the word itself isn't echoed
 
 
 def test_commit_author_is_checked(tmp_path):
     r = _repo(tmp_path, {"a.txt": "fine"})
-    subprocess.run(["git", "-c", "user.name=Real Name", "-c", "user.email=real@company.co.uk", "commit", "-q", "--allow-empty",
+    subprocess.run(["git", "-c", "user.name=Real Name", "-c", f"user.email={FAKE_WORK}", "commit", "-q", "--allow-empty",
                     "-m", "y"], cwd=r, check=True)
-    assert any("real@company.co.uk" in p for p in check_clean.check(r, words=["zzz"]))
+    assert any(FAKE_WORK in p for p in check_clean.check(r, words=["zzz"]))
 
 
 def test_missing_denylist_fails_closed(tmp_path):
