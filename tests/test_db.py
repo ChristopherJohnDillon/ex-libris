@@ -36,3 +36,17 @@ def test_settings_defaults(monkeypatch):
     monkeypatch.setenv("EXLIBRIS_TITLE", "The Smiths' books")
     s = config.settings()
     assert s.public is False and s.title == "The Smiths' books"
+
+
+def test_unwritable_data_folder_gives_a_clear_message(tmp_path, monkeypatch):
+    import os
+    import pytest
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    os.chmod(locked, 0o500)
+    monkeypatch.setenv("EXLIBRIS_DATA", str(locked))
+    try:
+        with pytest.raises(SystemExit, match="can't write to the data folder"):
+            db.init()
+    finally:
+        os.chmod(locked, 0o700)
