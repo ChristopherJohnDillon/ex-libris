@@ -20,6 +20,7 @@ class Job:
 def default_jobs():
     jobs = [Job("covers", 6 * 3600, covers.fill_missing),
             Job("series", 3600, openlibrary.backfill_series),
+            Job("years", 3600, openlibrary.backfill_years),
             Job("backup", 24 * 3600, backup.snapshot)]
     if ai.enabled():
         jobs.append(Job("genres", 2 * 3600, ai.fill_genres))

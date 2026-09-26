@@ -77,9 +77,9 @@
 
   // ---- edit panel -----------------------------------------------------------
   const PANEL = $("#edit"), FORM = $("#editform");
-  const FIELDS = ["title", "authors", "year", "pages", "isbn", "format", "publisher", "genre", "series", "series_index",
+  const FIELDS = ["title", "authors", "year", "edition_year", "pages", "isbn", "format", "publisher", "genre", "series", "series_index",
                   "location", "lent_to", "lent_on", "notes"];
-  const NUM = {year: parseInt, pages: parseInt, series_index: parseFloat};
+  const NUM = {year: parseInt, edition_year: parseInt, pages: parseInt, series_index: parseFloat};
   let editing = null, opener = null;
   function fill(b) {
     editing = b;

@@ -8,8 +8,8 @@ PAPERBACK = {"title": "The Talented Mr. Ripley", "publishers": ["Virago"], "publ
 
 
 def test_edition_row_uses_the_editions_own_details():
-    row = openlibrary.edition_row(PAPERBACK, {"authors": "Patricia Highsmith", "title": "The Talented Mr. Ripley"}, "9781850891840")
-    assert row == {"title": "The Talented Mr. Ripley", "authors": "Patricia Highsmith", "year": 2014,
+    row = openlibrary.edition_row(PAPERBACK, {"authors": "Patricia Highsmith", "title": "The Talented Mr. Ripley", "year": 1955}, "9781850891840")
+    assert row == {"title": "The Talented Mr. Ripley", "authors": "Patricia Highsmith", "year": 1955, "edition_year": 2014,
                    "isbn": "9781850891840", "publisher": "Virago", "cover_url": "/cover/15159585",
                    "ol_key": "/works/OL59434W", "edition_key": "/books/OL59004869M", "format": "Paperback",
                    "pages": 352, "series": "Ripliad", "series_index": 1}
@@ -27,6 +27,13 @@ class FakeHTTP:
                     raise v
                 return v
         raise openlibrary.NotFound(url)
+
+
+def test_year_is_first_published_edition_year_is_the_printing():
+    row = openlibrary.edition_row(PAPERBACK, {"year": 1955}, "x")
+    assert (row["year"], row["edition_year"]) == (1955, 2014)
+    alone = openlibrary.edition_row(PAPERBACK, None, "x")          # no work details: fall back to the printing
+    assert (alone["year"], alone["edition_year"]) == (2014, 2014)
 
 
 def test_edition_is_cached():
@@ -128,3 +135,18 @@ def test_public_stats_and_highlights():
 def test_empty_shelf_stats():
     st = stats.stats()
     assert st["tiles"]["books"] == 0 and st["by_genre"] == [] and stats.highlights(st) == []
+
+
+def test_first_published_and_backfill():
+    http = FakeHTTP({"search.json": {"docs": [{"key": "/works/OL59434W", "first_publish_year": 1955}]}})
+    c = openlibrary.Client(http_get=http, sleep=lambda s: None)
+    assert c.first_published("/works/OL59434W") == 1955
+    c.first_published("/works/OL59434W")
+    assert len(http.calls) == 1                                           # cached
+    printed = books.add({"title": "The Talented Mr. Ripley", "ol_key": "/works/OL59434W", "year": 2015, "isbn": "9780349006963"})
+    mine = books.add({"title": "Mine", "ol_key": "/works/OL59434W", "isbn": "9781850891840"})
+    books.update(mine["id"], {"year": 1950})                              # typed by hand: left alone
+    assert "1 first-published" in openlibrary.backfill_years(client_=c)
+    got = books.get(printed["id"])
+    assert (got["year"], got["edition_year"]) == (1955, 2015)
+    assert books.get(mine["id"])["year"] == 1950

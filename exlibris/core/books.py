@@ -7,16 +7,16 @@ import re
 import sqlite3
 from exlibris.core import db
 
-PUBLIC_FIELDS = ("id", "title", "authors", "year", "format", "publisher", "isbn", "cover_url", "genre", "series",
+PUBLIC_FIELDS = ("id", "title", "authors", "year", "edition_year", "format", "publisher", "isbn", "cover_url", "genre", "series",
                  "series_index", "pages")
-ADD_FIELDS = ("title", "authors", "year", "isbn", "publisher", "format", "pages", "cover_url", "ol_key", "edition_key",
+ADD_FIELDS = ("title", "authors", "year", "edition_year", "isbn", "publisher", "format", "pages", "cover_url", "ol_key", "edition_key",
               "genre", "series", "series_index", "location", "notes")
-EDITABLE = ("title", "authors", "year", "isbn", "publisher", "format", "pages", "genre", "series", "series_index",
+EDITABLE = ("title", "authors", "year", "edition_year", "isbn", "publisher", "format", "pages", "genre", "series", "series_index",
             "location", "lent_to", "lent_on", "notes")
-NUMBERS = {"year": (int, "Year"), "pages": (int, "Pages"), "series_index": (float, "Number in series")}
+NUMBERS = {"year": (int, "Year"), "edition_year": (int, "Edition year"), "pages": (int, "Pages"), "series_index": (float, "Number in series")}
 CSV_COLUMNS = ("title", "authors", "year", "isbn", "format", "publisher", "pages", "genre", "series", "series_index",
-               "location", "notes", "lent_to", "lent_on", "added_at")
-IMPORT_COLUMNS = CSV_COLUMNS[:12]
+               "location", "notes", "edition_year", "lent_to", "lent_on", "added_at")
+IMPORT_COLUMNS = CSV_COLUMNS[:13]
 GENRES = ("Fiction", "Sci-fi & fantasy", "Crime & thriller", "Kids", "Young adult", "History", "Biography & memoir",
           "Science & nature", "Business & money", "Self-help", "Food & drink", "Travel", "Art & design", "Reference",
           "Other")
@@ -185,6 +185,8 @@ def add(book):
 
 def update(book_id, changes, today=None):
     vals = _clean(changes, EDITABLE, today)
+    if "year" in vals:
+        vals["year_checked"] = 1                  # a hand-set year is never "corrected" by the background task
     with db.connect() as c:
         if not c.execute("SELECT 1 FROM books WHERE id = ?", (book_id,)).fetchone():
             return None
@@ -208,7 +210,7 @@ def fill_blanks(book_id, found):
     book = get(book_id)
     if book is None:
         return None
-    keys = ("title", "authors", "year", "publisher", "format", "pages", "cover_url", "ol_key", "edition_key", "series",
+    keys = ("title", "authors", "year", "edition_year", "publisher", "format", "pages", "cover_url", "ol_key", "edition_key", "series",
             "series_index")
     fill = {k: found[k] for k in keys if found.get(k) not in (None, "") and book.get(k) in (None, "")}
     if fill:

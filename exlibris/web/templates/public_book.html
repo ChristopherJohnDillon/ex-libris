@@ -11,6 +11,7 @@
       {% if b.series %}<li><span class="k">Series</span><span>{{ b.series }}{% if b.series_index is not none %} · {{ b.series_index|int if b.series_index == b.series_index|int else b.series_index }}{% endif %}</span></li>{% endif %}
       {% if b.genre %}<li><span class="k">Genre</span><span>{{ b.genre }}</span></li>{% endif %}
       {% if b.year %}<li><span class="k">First published</span><span>{{ b.year }}</span></li>{% endif %}
+      {% if b.edition_year and b.edition_year != b.year %}<li><span class="k">This edition</span><span>{{ b.edition_year }}</span></li>{% endif %}
       {% if b.format %}<li><span class="k">Format</span><span>{{ b.format }}</span></li>{% endif %}
       {% if b.publisher %}<li><span class="k">Publisher</span><span>{{ b.publisher }}</span></li>{% endif %}
       {% if b.pages %}<li><span class="k">Pages</span><span>{{ b.pages }}</span></li>{% endif %}
