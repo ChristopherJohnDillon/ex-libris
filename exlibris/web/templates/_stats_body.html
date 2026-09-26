@@ -1,0 +1,36 @@
+{# Shared by both apps. Needs st, hl, author_base; private adds lending and books-added. #}
+{% if hl %}<div class="hls">{% for h in hl %}
+  <div class="hl"><div class="k">{{ h.label }}</div><div class="v">{{ h.value }}</div><div class="d">{{ h.detail }}</div></div>
+{% endfor %}</div>{% endif %}
+{% if fun %}<div class="fun" id="fun" data-md="{{ fun }}"></div>{% endif %}
+<div class="tiles">
+  <div><div class="label">Books</div><div class="value">{{ "{:,}".format(st.tiles.books) }}</div></div>
+  <div><div class="label">Authors</div><div class="value">{{ "{:,}".format(st.tiles.authors) }}</div></div>
+  <div><div class="label">Pages</div><div class="value">{{ "{:,}".format(st.tiles.pages) }}</div></div>
+  {% if "lent_out" in st.tiles %}<div><div class="label">Lent out</div><div class="value">{{ st.tiles.lent_out }}</div></div>{% endif %}
+</div>
+{% if not st.tiles.books %}<p class="muted">No books yet, so nothing to count.</p>{% else %}
+{% macro chart(id, title, rows, horizontal=True) %}
+<h2>{{ title }}</h2>
+<div id="{{ id }}" class="chart" role="img" aria-label="{{ title }}" data-rows="{{ rows|tojson|forceescape }}" data-h="{{ 1 if horizontal else 0 }}"
+  {% if id == "author-chart" %}data-link="{{ author_base }}"{% endif %}></div>
+<details><summary>As a table</summary><table><thead><tr><th>{{ title }}</th><th class="num">Books</th></tr></thead>
+<tbody>{% for r in rows %}<tr><td>{{ r[0] }}</td><td class="num">{{ r[1] }}</td></tr>{% endfor %}</tbody></table></details>
+{% endmacro %}
+<div class="cols">
+  <div>{{ chart("genre-chart", "Genres", st.by_genre) }}</div>
+  <div>{{ chart("author-chart", "Top authors", st.top_authors) }}</div>
+</div>
+<div class="cols">
+  <div>{{ chart("decade-chart", "Decade first published", st.by_decade, horizontal=False) }}</div>
+  <div>{{ chart("format-chart", "Formats", st.by_format) }}</div>
+</div>
+{% if st.added_per_month %}{{ chart("added-chart", "Books added per month", st.added_per_month, horizontal=False) }}{% endif %}
+<h2>Curiosities</h2>
+<ul class="odd">{% set o = st.oddities %}
+  {% if o.longest %}<li><span class="k">Longest</span><span>{{ o.longest.title }} <span class="muted">· {{ "{:,}".format(o.longest.pages) }} pages</span></span></li>{% endif %}
+  {% if o.oldest %}<li><span class="k">Oldest</span><span>{{ o.oldest.title }} <span class="muted">· {{ o.oldest.year }}</span></span></li>{% endif %}
+  {% if o.most_editions %}<li><span class="k">Most editions of one book</span><span>{{ o.most_editions.title }} <span class="muted">· {{ o.most_editions.n }} copies</span></span></li>{% endif %}
+  <li><span class="k">Authors with one book</span><span>{{ o.single_book_authors }}</span></li>
+</ul>
+{% endif %}

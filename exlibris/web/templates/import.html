@@ -1,1 +1,14 @@
-<!doctype html><title>{{ title }}</title><h1>import</h1>
+{% extends "base.html" %}
+{% block title %}Import{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% block body_attrs %}data-page="import"{% endblock %}
+{% block content %}
+<h1>Import books</h1>
+<p>Pick a CSV file with a header row. Recognised columns: <code>title</code> (required), <code>authors</code>, <code>year</code>,
+<code>isbn</code>, <code>format</code>, <code>publisher</code>, <code>pages</code>, <code>genre</code>, <code>series</code>,
+<code>series_index</code>, <code>location</code>, <code>notes</code>. Nothing is added until you confirm.</p>
+<input type="file" id="csvfile" accept=".csv,text/csv">
+<div id="preview"></div>
+<p class="err" id="import-err"></p>
+{% endblock %}
+{% block scripts %}<script src="/static/import.js?v={{ version }}"></script>{% endblock %}

@@ -1,1 +1,36 @@
-<!doctype html><title>{{ title }}</title><h1>scan</h1>
+{% extends "base.html" %}
+{% block title %}Scan{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% block body_attrs %}data-page="scan"{% endblock %}
+{% block content %}
+<h1>Scan books</h1>
+<div class="seg" role="group" aria-label="What scanning does" style="margin-bottom:12px">
+  <button type="button" data-mode="check" aria-pressed="false">Do I own this?</button>
+  <button type="button" data-mode="add" aria-pressed="false">Add books</button>
+</div>
+<div class="bar addonly panel" style="margin:0 0 12px">
+  <label for="loc" style="margin:0;color:var(--ink);font-weight:600">Adding to</label>
+  <input id="loc" list="rooms" placeholder="Pick or type a room" autocomplete="off" style="flex:1;min-width:0">
+  <button type="button" class="btn quiet" id="locclear">Clear</button>
+</div>
+<datalist id="rooms"></datalist>
+<div class="cam" id="cam">
+  <video id="video" playsinline muted autoplay></video>
+  <div class="guide" aria-hidden="true"></div>
+  <div class="msg" id="msg" role="status" aria-live="polite">Starting camera…</div>
+  <div class="start" id="start" hidden><button class="btn primary" type="button" id="startbtn">Start camera</button></div>
+</div>
+<p class="muted small" id="insecure" hidden>The camera needs a secure (https) address — or open this on the computer
+running Ex Libris via localhost. You can still type ISBNs below. See the README for easy ways to get https.</p>
+<label class="addonly" style="display:flex;gap:8px;align-items:center;margin:12px 0 0;color:var(--ink)">
+  <input type="checkbox" id="auto" style="width:auto"> Add automatically <span class="muted small">(scan a pile without tapping)</span></label>
+<section class="verdict" id="verdict" hidden aria-live="assertive"></section>
+<section class="panel" id="card" hidden aria-live="polite"></section>
+<form class="bar" id="manual" style="margin-top:14px">
+  <input id="isbn" inputmode="numeric" autocomplete="off" placeholder="Or type an ISBN" aria-label="ISBN" style="flex:1;min-width:0">
+  <button class="btn" type="submit">Look up</button>
+</form>
+<h2 class="small muted" id="loghead" hidden>Added this session</h2>
+<ul class="books" id="log"></ul>
+{% endblock %}
+{% block scripts %}<script src="/static/vendor/zxing.min.js"></script><script src="/static/scan.js?v={{ version }}"></script>{% endblock %}

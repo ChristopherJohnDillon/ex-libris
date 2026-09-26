@@ -1,1 +1,34 @@
-<!doctype html><title>{{ title }}</title><h1>library</h1>
+{% extends "base.html" %}
+{% block body_attrs %}data-page="library"{% endblock %}
+{% block content %}
+<div class="bar" style="justify-content:space-between;align-items:baseline">
+  <h1>{{ title }}</h1>
+  <span class="muted small"><span id="count"></span> · <a href="/export.csv">CSV</a> · <a href="/backup.zip">Backup</a> · <a href="/import">Import</a></span>
+</div>
+{% if not total %}
+<section class="banner">
+  <strong>Welcome to Ex Libris.</strong> Add your first book with <a href="/scan?mode=add">the scanner</a> (on your phone),
+  by searching below, or <a href="/import">import a CSV</a>.
+  <p class="small" style="margin:8px 0 0">Keep this app private: <strong>don't expose port 8080 to the internet</strong> without
+  protection in front of it (Cloudflare Access, a VPN, or your home network only). Port 8081 is the read-only view you can share.</p>
+</section>
+{% endif %}
+{% for r in overdue %}<p class="banner warn small">“{{ r.title }}” lent to {{ r.lent_to }} since {{ r.lent_on }} ({{ r.days }} days).</p>{% endfor %}
+<div class="bar">
+  <input type="search" id="q" placeholder="Search title, author, ISBN" autocomplete="off" aria-label="Search your books">
+  <button class="btn primary" id="toggle-add" aria-expanded="false" aria-controls="add"><svg class="i"><use href="#i-plus"/></svg> Add book</button>
+</div>
+<section id="add" class="panel" hidden>
+  <div class="bar"><input type="search" id="lq" placeholder="Title, author or ISBN" autocomplete="off" aria-label="Look up a book"></div>
+  <div class="bar" style="margin-top:8px"><label for="addloc" style="margin:0">Adding to</label>
+    <input id="addloc" list="rooms" placeholder="Room (optional)" autocomplete="off"></div>
+  <p class="muted small" style="margin:8px 0 0">For the exact edition you own, type its ISBN or use the scanner.</p>
+  <ul class="books" id="lookup"></ul>
+</section>
+{% with private = true %}{% include "_browse.html" %}{% endwith %}
+{% include "_edit_panel.html" %}
+<datalist id="rooms"></datalist>
+<datalist id="genres">{% for g in genres %}<option value="{{ g }}">{% endfor %}</datalist>
+<datalist id="formats"><option value="Hardcover"><option value="Paperback"><option value="Mass Market Paperback"><option value="Ebook"><option value="Audiobook"></datalist>
+{% endblock %}
+{% block scripts %}<script src="/static/browse.js?v={{ version }}"></script><script src="/static/library.js?v={{ version }}"></script>{% endblock %}
