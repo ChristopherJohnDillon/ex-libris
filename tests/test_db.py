@@ -19,12 +19,12 @@ def test_init_is_idempotent_and_versioned():
 def test_full_text_search_follows_changes():
     db.init()
     with db.connect() as c:
-        c.execute("INSERT INTO books (title, authors) VALUES ('Harry Potter', 'J. K. Rowling')")
+        c.execute("INSERT INTO books (title, authors) VALUES ('The Talented Mr. Ripley', 'Patricia Highsmith')")
         find = lambda q: [r[0] for r in c.execute(
             "SELECT books.title FROM books_fts JOIN books ON books.id = books_fts.rowid WHERE books_fts MATCH ?", (q,))]
-        assert find('"harr"*') == ["Harry Potter"]
+        assert find('"tal"*') == ["The Talented Mr. Ripley"]
         c.execute("UPDATE books SET title = 'Dune'")
-        assert find('"harr"*') == [] and find('"dune"*') == ["Dune"]
+        assert find('"tal"*') == [] and find('"dune"*') == ["Dune"]
         c.execute("DELETE FROM books")
         assert find('"dune"*') == []
 

@@ -60,13 +60,13 @@ def _fake_client(monkeypatch, edition=None, fail=False):
 
 
 def test_do_i_own_this(c, monkeypatch):
-    c.post("/api/books", json={"title": "HP", "isbn": "9780747532699", "ol_key": "/works/HP", "format": "Hardcover",
+    c.post("/api/books", json={"title": "The Talented Mr. Ripley", "isbn": "9780349006963", "ol_key": "/works/OL59434W", "format": "Hardcover",
                                "location": "Lounge"})
     _fake_client(monkeypatch, fail=True)                                   # an exact match needs no network
-    r = c.get("/api/own/978-0747532699").json()
+    r = c.get("/api/own/978-0349006963").json()
     assert r["answer"] == "yes" and r["this"][0]["location"] == "Lounge"
-    _fake_client(monkeypatch, edition={"title": "HP", "works": [{"key": "/works/HP"}], "physical_format": "paperback"})
-    r = c.get("/api/own/9781408855652").json()
+    _fake_client(monkeypatch, edition={"title": "The Talented Mr. Ripley", "works": [{"key": "/works/OL59434W"}], "physical_format": "paperback"})
+    r = c.get("/api/own/9781850891840").json()
     assert r["answer"] == "other" and r["others"][0]["format"] == "Hardcover" and r["found"]["format"] == "Paperback"
     _fake_client(monkeypatch, fail=True)
     assert c.get("/api/own/9780141439587").json() == {"answer": "no", "isbn": "9780141439587", "this": [], "others": [],
