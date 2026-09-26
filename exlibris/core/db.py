@@ -1,4 +1,5 @@
 """The SQLite database in the data folder: schema, versioned migrations, FTS."""
+import os
 import sqlite3
 from contextlib import contextmanager
 from exlibris import config
@@ -59,8 +60,15 @@ def path():
 
 def folders():
     d = config.settings().data_dir
-    for sub in ("", "covers", "cache", "backups"):
-        (d / sub).mkdir(parents=True, exist_ok=True)
+    try:
+        for sub in ("", "covers", "cache", "backups"):
+            (d / sub).mkdir(parents=True, exist_ok=True)
+        probe = d / ".write-test"
+        probe.write_text("ok")
+        probe.unlink()
+    except PermissionError:
+        raise SystemExit(f"Ex Libris can't write to the data folder {d}. Make it writable by the user the app runs as "
+                         f"(uid {os.getuid()}), or set PUID/PGID to your own user (see README → Data folder).")
     return d
 
 

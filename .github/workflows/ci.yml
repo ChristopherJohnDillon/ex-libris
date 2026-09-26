@@ -1,0 +1,39 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[test]"
+      - run: python -m pytest -q
+      - name: Nothing personal in the repo
+        env:
+          EXLIBRIS_DENYLIST_TEXT: ${{ secrets.EXLIBRIS_DENYLIST_TEXT }}
+        run: |
+          if [ -z "$EXLIBRIS_DENYLIST_TEXT" ]; then echo "denylist secret not set (forks): generic checks only"; export EXLIBRIS_DENYLIST_TEXT="no-private-denylist-in-forks"; fi
+          python scripts/check_clean.py
+  container:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t ex-libris:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name xl -p 8080:8080 -p 8081:8081 ex-libris:ci
+          for i in $(seq 1 30); do curl -sf localhost:8080/healthz && break; sleep 1; done
+          curl -sf -X POST localhost:8080/api/books -H 'Content-Type: application/json' -d '{"title":"Smoke Test Book"}'
+          curl -sf localhost:8081/api/books | grep -q "Smoke Test Book"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8081/api/books -H 'Content-Type: application/json' -d '{}')" = "405"
+          docker logs xl | tail -5

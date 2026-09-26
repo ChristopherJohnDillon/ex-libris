@@ -1,0 +1,22 @@
+# Ex Libris — docker compose up -d
+#   Library (add, scan, edit):   http://localhost:8080   ← keep this private (see README → Security)
+#   Public read-only view:       http://localhost:8081   ← safe to share
+services:
+  ex-libris:
+    image: ghcr.io/christopherjohndillon/ex-libris:latest
+    # build: .                      # or build it yourself from this folder
+    container_name: ex-libris
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ./data:/data                 # your books, covers and nightly backups live here
+    environment:
+      TZ: Etc/UTC                    # your time zone, e.g. America/New_York
+      # EXLIBRIS_TITLE: "Our books"
+      # EXLIBRIS_PUBLIC: "off"                          # turn the read-only view off
+      # EXLIBRIS_OPENLIBRARY_CONTACT: you@example.org   # faster, friendlier Open Library lookups
+      # EXLIBRIS_GOOGLE_BOOKS: "off"                    # don't use Google Books for missing covers
+      # EXLIBRIS_AI_URL: http://ollama:11434            # optional: fill genres with any OpenAI-compatible server
+      # EXLIBRIS_AI_MODEL: llama3.1
