@@ -48,7 +48,9 @@ docker run -d --name ex-libris -p 8080:8080 -p 8081:8081 -v "$PWD/data:/data" \
 
 ## Scanning with your phone
 
-Phone browsers only allow the camera on **https** pages (or on `localhost`). On a plain `http://192.168.x.x:8080` address the scanner falls back to typing an ISBN, which always works. For camera scanning, give the library an https address, most easily with one of the options below (both are free).
+Phone browsers only allow the camera on **https** pages (or on `localhost`). On a plain `http://192.168.x.x:8080` address the scanner falls back to typing an ISBN, which always works. For camera scanning, give the library an https address: Cloudflare Tunnel or `tailscale serve` (see [Security](#security)) both do it for free.
+
+Handy for phone shortcuts: `/scan?mode=check&isbn=9780393066470` opens the scanner and checks that ISBN straight away (links only ever look a book up; they never add it).
 
 ## Security
 
@@ -60,6 +62,7 @@ Phone browsers only allow the camera on **https** pages (or on `localhost`). On 
   - [Tunnel guide](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) · [Access guide](https://developers.cloudflare.com/cloudflare-one/applications/configure-apps/self-hosted-public-app/)
 - **Tailscale:** only your own devices can reach it. `tailscale serve` adds https.
 - **Home network only:** don't forward the port. The camera then needs https or `localhost`, as above.
+- **Your own reverse proxy (nginx, Caddy, Traefik):** fine, as long as it passes the browser's `Host` header through (or sets `X-Forwarded-Host`). Ex Libris refuses edits whose origin doesn't match, to stop other websites making changes from your browser.
 
 **The public view (port 8081) is safe to share.**
 - It is a separate app with no way to change anything: it has no edit, add, delete or import routes at all.
@@ -79,31 +82,41 @@ All optional, as environment variables in `compose.yaml`:
 | `EXLIBRIS_GOOGLE_BOOKS` | `on` | `off` stops using Google Books to find missing covers |
 | `EXLIBRIS_AI_URL` | | Optional AI, see below |
 | `EXLIBRIS_AI_MODEL` / `EXLIBRIS_AI_KEY` | | Model name / API key for the AI server |
-| `PUID` / `PGID` | `1000` | The user and group that own the files in `./data` |
-| `TZ` | `Etc/UTC` | Time zone (for nightly backups and loan dates) |
+| `PUID` / `PGID` | `1000` | The user and group that own the files in `./data` (see [Data folder](#data-folder)) |
+| `EXLIBRIS_PORT` / `EXLIBRIS_PUBLIC_PORT` | `8080` / `8081` | Ports inside the container, if you need different ones |
+| `EXLIBRIS_HOST` | `0.0.0.0` | Address the servers listen on inside the container |
+| `TZ` | `Etc/UTC` | Time zone (for loan dates and backup file names) |
 
 ## Optional AI
 
 Point `EXLIBRIS_AI_URL` at any OpenAI-compatible server (e.g. [Ollama](https://ollama.com) on another machine, LM Studio, or OpenAI) and Ex Libris will:
 - sort your books into genres from their Open Library subjects. It never overwrites a genre you've set yourself.
-- add a playful "fun facts" card to the stats page, using only numbers it's given.
+- add a playful "fun facts" card to the library's stats page once a week, using only numbers it's given (never on the public view).
 
 It's off unless you set it, and nothing else depends on it.
 
 ## Where to run it
 
-Anywhere Docker runs with a disk that keeps its files. It idles at about 50 MB of memory. Images are built for Intel/AMD and ARM (Raspberry Pi, Apple silicon).
+Anywhere Docker runs with a disk that keeps its files. It idles at around 50–70 MB of memory with a few hundred books. Images are built for Intel/AMD and ARM (Raspberry Pi, Apple silicon).
 
 - **A computer you already have:** a Raspberry Pi, an old laptop, or a NAS (Synology, Unraid, TrueNAS). Add Cloudflare Tunnel for https and a login. Free.
 - **Google Cloud "Always Free" e2-micro:** 1 GB of memory and a 30 GB disk is plenty. US regions only.
 - **A small VPS:** Hetzner and similar, a few euros a month.
 - **Avoid** free app platforms that don't keep a disk (e.g. Render's free tier). Your library would vanish on restart.
 
+## Data folder
+
+Everything lives in `./data` (mounted at `/data`): `library.db` (your books), `covers/`, `cache/` (Open Library answers) and `backups/`.
+
+- The container starts as root only long enough to make `/data` belong to `PUID:PGID` (default `1000:1000`), then runs as that user. Set them to your own user and group (`id -u`, `id -g`) so the files are yours on the host, e.g. on a NAS.
+- Running with `--user` yourself, or with rootless Docker/Podman? Then it doesn't change ownership at all; set `PUID=0 PGID=0` under rootless Docker so the files stay yours on the host.
+- If the folder can't be written, it stops with a message saying so, rather than half-working.
+
 ## Backups
 
-- **Every night:** a checked copy of the database and a CSV go into `./data/backups` (30 days kept).
+- **Daily:** a checked copy of the database and a CSV go into `./data/backups` (each start, then every 24 hours; 30 days kept). Uploaded cover photos stay in `./data/covers`: back up the whole `./data` folder to keep them too.
 - **On demand:** **Backup** on the library page downloads a zip of everything (database, CSV, covers).
-- **To restore:** stop the container, copy a backup `library-YYYYMMDD.db` to `./data/library.db` (delete any `library.db-wal` / `library.db-shm` files next to it), and start it again.
+- **To restore:** stop the container, copy a backup `library-YYYYMMDD.db` to `./data/library.db` (delete any `library.db-wal` / `library.db-shm` files next to it), and start it again. Ownership is fixed on start.
 - **Moving from another app?** **Import** takes a CSV. Columns: `title` (required), `authors`, `year`, `isbn`, `format`, `publisher`, `pages`, `genre`, `series`, `series_index`, `location`, `notes`. You see a preview before anything is added.
 
 ## Credits

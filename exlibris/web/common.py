@@ -33,7 +33,10 @@ def same_origin(request: Request):
             "application/json" in ctype or request.headers.get("hx-request") == "true"):
         raise HTTPException(415, "JSON requests only")
     origin = request.headers.get("origin")
-    if origin and origin.split("://", 1)[-1] != request.headers.get("host", ""):
+    # behind a reverse proxy the Host header may be rewritten; the proxy's X-Forwarded-Host
+    # names the address the browser used (a cross-site page can't set either header)
+    hosts = {request.headers.get("host", ""), request.headers.get("x-forwarded-host", "").split(",")[0].strip()}
+    if origin and origin.split("://", 1)[-1] not in hosts:
         raise HTTPException(403, "cross-origin request refused")
 
 

@@ -3,6 +3,7 @@ told apart by ISBN (unique); ol_key is the Open Library work."""
 import csv
 import datetime as dt
 import io
+import math
 import re
 import sqlite3
 from exlibris.core import db
@@ -146,6 +147,8 @@ def _clean(changes, allowed, today=None):
     for k, v in changes.items():
         if k not in allowed:
             raise ValueError(f"{k} can't be set here")
+        if v is not None and not isinstance(v, (str, int, float)):
+            raise ValueError(f"{k} should be text or a number")
         out[k] = (v.strip() or None) if isinstance(v, str) else v
     if "title" in out and not out["title"]:
         raise ValueError("A book needs a title")
@@ -153,14 +156,17 @@ def _clean(changes, allowed, today=None):
         if out.get(k) is not None:
             try:
                 out[k] = kind(out[k])
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 raise ValueError(f"{label} should be a number")
+            # finite and sane: "inf" or 1e999 would break every JSON response that includes the book
+            if not math.isfinite(out[k]) or abs(out[k]) > 100_000:
+                raise ValueError(f"{label} should be a sensible number")
     if out.get("isbn"):
         out["isbn"] = isbn13(out["isbn"]) or re.sub(r"[\s-]", "", out["isbn"]).upper()
     if "format" in out:
         out["format"] = norm_format(out["format"])
     if "genre" in out and "genre_source" not in out:
-        out["genre_source"] = "manual" if out["genre"] else None
+        out["genre_source"] = "manual"          # set or cleared by hand: automatic genres leave it alone
     if out.get("lent_to") and "lent_on" not in out:
         out["lent_on"] = today.isoformat()
     if "lent_to" in out and not out["lent_to"]:
@@ -238,7 +244,18 @@ def import_csv(text, commit=False):
     isbns, works = owned()
     existing = {(r["title"].casefold(), (r["authors"] or "").casefold()) for r in search()["books"]}
     result = {"new": [], "duplicates": [], "errors": []}
-    for n, raw in enumerate(csv.DictReader(io.StringIO(text)), start=2):
+    seen = set()
+    reader = csv.DictReader(io.StringIO(text))
+    n = 1
+    while True:
+        n += 1
+        try:
+            raw = next(reader)
+        except StopIteration:
+            break
+        except csv.Error as e:
+            result["errors"].append({"line": n, "why": f"unreadable row ({e})"})
+            break
         row = {k: (raw.get(k) or "").strip() for k in IMPORT_COLUMNS}
         if not any(row.values()):
             continue
@@ -246,9 +263,16 @@ def import_csv(text, commit=False):
             result["errors"].append({"line": n, "why": "no title"})
             continue
         isbn = isbn13(row["isbn"]) if row["isbn"] else None
-        if (isbn and isbn in isbns) or (row["title"].casefold(), row["authors"].casefold()) in existing:
+        key = isbn or (row["title"].casefold(), row["authors"].casefold())
+        if (isbn and isbn in isbns) or (row["title"].casefold(), row["authors"].casefold()) in existing or key in seen:
             result["duplicates"].append(row)
             continue
+        try:
+            _clean({k: v for k, v in row.items() if v}, IMPORT_COLUMNS)
+        except ValueError as e:
+            result["errors"].append({"line": n, "why": str(e)})
+            continue
+        seen.add(key)
         result["new"].append(row)
     if commit:
         for row in result["new"]:

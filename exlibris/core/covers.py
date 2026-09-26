@@ -5,15 +5,20 @@ Downloaded and uploaded images are kept in <data>/covers as u<book>-<hash>.jpg;
 Open Library covers are served from their id and cached on first view."""
 import hashlib
 import io
+import os
+import tempfile
 import threading
 import time
 import httpx
-from PIL import Image, UnidentifiedImageError
+import warnings
+from PIL import Image, ImageOps, UnidentifiedImageError
 from exlibris import config
 from exlibris.core import books, db, openlibrary
 
 MAX_PX = 600
 MIN_PX = 60
+MAX_PIXELS = 40_000_000        # a few hundred KB of PNG can decode to gigabytes; refuse before decoding
+Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 GOOGLE = "https://www.googleapis.com/books/v1/volumes"
 _google_lock, _google_last = threading.Lock(), [float("-inf")]
 
@@ -27,9 +32,15 @@ def covers_dir():
 def save_image(book_id, data):
     """Image bytes -> a stored cover URL for the book, or None if it isn't a usable image."""
     try:
-        img = Image.open(io.BytesIO(data))
-        img.load()
-    except (UnidentifiedImageError, OSError, ValueError):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            img = Image.open(io.BytesIO(data))
+            if img.width * img.height > MAX_PIXELS:
+                return None
+            img.draft("RGB", (MAX_PX * 2, MAX_PX * 2))    # JPEGs decode straight at a smaller size
+            img.load()
+            img = ImageOps.exif_transpose(img)           # phone photos: turn upright, then drop the tag
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
         return None
     if img.width < MIN_PX:
         return None                                   # placeholders ("image not available") are tiny
@@ -80,6 +91,12 @@ def _google_thumb(data):
 
 def find(book, json_get, image_get):
     """-> (cover_url, where it came from) or (None, None)."""
+    url, source, _ = _find(book, json_get, image_get)
+    return url, source
+
+
+def _find(book, json_get, image_get):
+    """-> (cover_url, source, whether any source failed to answer)."""
     google = config.settings().google_books
     author = (books.authors_of(book) or [""])[0]
 
@@ -109,14 +126,19 @@ def find(book, json_get, image_get):
         steps.append(lambda: from_google(f"intitle:{book['title']}" + (f" inauthor:{author}" if author else ""),
                                          "Google Books (title)"))
     steps.append(from_search)
+    failed = False
     for step in steps:
         try:
             hit = step()
-        except (httpx.HTTPError, OSError, ValueError, KeyError, TypeError, openlibrary.Unavailable, openlibrary.NotFound):
+        except openlibrary.NotFound:
+            hit = None
+        except (httpx.HTTPError, OSError, openlibrary.Unavailable):
+            hit, failed = None, True                       # no answer (network, outage): try again later
+        except (ValueError, KeyError, TypeError):
             hit = None
         if hit:
-            return hit
-    return None, None
+            return hit[0], hit[1], False
+    return None, None, failed
 
 
 def fill_missing(json_get=None, image_get=None, limit=20):
@@ -126,9 +148,44 @@ def fill_missing(json_get=None, image_get=None, limit=20):
                                            "ORDER BY id LIMIT ?", (limit,))]
     found = 0
     for b in rows:
-        url, _ = find(b, json_get, image_get)
-        if url:
-            books.set_fields(b["id"], cover_url=url)
-            found += 1
-        books.set_fields(b["id"], cover_tried=1)
+        url, _, failed = _find(b, json_get, image_get)
+        with db.connect() as c:
+            if url:
+                # only if nothing was set meanwhile (an upload while we searched wins)
+                found += c.execute("UPDATE books SET cover_url = ?, cover_tried = 1 WHERE id = ? AND coalesce(cover_url, '') = ''",
+                                   (url, b["id"])).rowcount
+            elif not failed:
+                c.execute("UPDATE books SET cover_tried = 1 WHERE id = ?", (b["id"],))
     return f"{found} cover{'s' if found != 1 else ''} found of {len(rows)} tried"
+
+
+def download_missing_files(limit=50, client_=None):
+    """Open Library covers are stored as ids; fetch the image files in the background
+    (so the public view has them and nobody's page load waits on Open Library). A
+    cover Open Library no longer has is cleared, so the finder can look elsewhere."""
+    import re
+    c = client_ or openlibrary.client()
+    with db.connect() as conn:
+        rows = conn.execute("SELECT id, cover_url FROM books WHERE cover_url GLOB '/cover/[0-9]*'").fetchall()
+    todo = [(i, u) for i, u in rows if re.fullmatch(r"/cover/\d+", u) and not (covers_dir() / f"{u[7:]}.jpg").exists()][:limit]
+    got = 0
+    for book_id, url in todo:
+        try:
+            data = c.cover_bytes(int(url[7:]))
+        except openlibrary.Unavailable:
+            continue
+        if data:
+            store_open_library_cover(int(url[7:]), data)
+            got += 1
+        else:
+            with db.connect() as conn:
+                conn.execute("UPDATE books SET cover_url = NULL, cover_tried = NULL WHERE id = ? AND cover_url = ?", (book_id, url))
+    return f"{got} cover file{'s' if got != 1 else ''} downloaded"
+
+
+def store_open_library_cover(cover_id, data):
+    path = covers_dir() / f"{int(cover_id)}.jpg"
+    with tempfile.NamedTemporaryFile(dir=covers_dir(), suffix=".part", delete=False) as tmp:
+        tmp.write(data)
+    os.replace(tmp.name, path)
+    return path

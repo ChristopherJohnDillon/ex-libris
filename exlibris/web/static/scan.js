@@ -140,8 +140,9 @@
     };
   }
   function showCard(html, onclick) { card.innerHTML = html; card.hidden = false; card.onclick = onclick; }
-  async function handle(isbn) {
+  async function handle(isbn, fromLink = false) {
     if (mode === "check") return check(isbn);
+    const auto = $("#auto").checked && !fromLink;             // a link only looks a book up, never adds it
     busy = true; say(`ISBN ${isbn} — looking it up…`);
     let rows;
     try { rows = await send(`/api/lookup?q=${encodeURIComponent(isbn)}`); } catch (e) { resume(e.message); return; }
@@ -154,8 +155,8 @@
       say("Not found — add it by title, or skip"); return;
     }
     b.isbn = isbn;
-    if (b.owned) { if ($("#auto").checked) return resume(`This edition is already on the shelf: ${b.title}`); }
-    else if ($("#auto").checked) { const res = await add(b); return resume(res === "added" ? added(b.title) : res === "owned" ? "Already on the shelf" : "Couldn't add that one."); }
+    if (b.owned) { if (auto) return resume(`This edition is already on the shelf: ${b.title}`); }
+    else if (auto) { const res = await add(b); return resume(res === "added" ? added(b.title) : res === "owned" ? "Already on the shelf" : "Couldn't add that one."); }
     showCard(`<div class="bar" style="align-items:flex-start;flex-wrap:nowrap">${cover(b)}<div><div class="t">${esc(b.title)}</div><div class="a">${esc(b.authors)}</div><div class="m">${line(b)}</div>
       ${b.other_edition ? `<div class="m" style="color:var(--warn)">You have another edition of this.</div>` : ""}
       <div class="bar" style="margin-top:10px">${b.owned ? `<span class="owned">This edition is already on the shelf</span><button class="btn" data-do="skip">Scan next</button>`
@@ -174,7 +175,7 @@
   setMode(mode);
   // /scan?mode=check&isbn=978... looks that ISBN up straight away (links, phone shortcuts)
   const linked = normalise(params.get("isbn"));
-  if (linked) handle(linked);
+  if (linked) handle(linked, true);
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { $("#insecure").hidden = false; say("Camera unavailable here — type the ISBN below."); }
   else start();
 })();

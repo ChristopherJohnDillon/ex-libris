@@ -37,7 +37,7 @@ def test_isbn_clash_names_the_other_book():
 def test_genre_hand_set_is_marked_manual():
     b = books.add({"title": "Dune"})
     assert books.update(b["id"], {"genre": "Sci-fi & fantasy"})["genre_source"] == "manual"
-    assert books.update(b["id"], {"genre": ""})["genre_source"] is None
+    assert books.update(b["id"], {"genre": ""})["genre_source"] == "manual"          # cleared by hand stays cleared
 
 
 def test_lending_dates():
