@@ -16,6 +16,7 @@ COVER = "https://covers.openlibrary.org/b/id/{}-M.jpg?default=false"
 FIELDS = "key,title,author_name,first_publish_year,isbn,cover_i,publisher"
 GAP_ANON, GAP_CONTACT = 1.1, 0.4
 AUTHOR_TTL = 7 * 86400
+MAX_GAP_YEARS = 150            # a first-published year this much older than the printing is treated as bad data
 REPO = "https://github.com/ChristopherJohnDillon/ex-libris"
 
 
@@ -237,6 +238,9 @@ def backfill_years(limit=100, client_=None):
         except Unavailable:
             continue                                   # try again next time
         fields = {"year_checked": 1}
+        printed = edition_year or year
+        if first and printed and printed - first > MAX_GAP_YEARS:
+            first = None                               # Open Library noise (a 1600 "first edition" of a 2019 cookbook)
         if first and (year is None or year == edition_year or year > first):
             fields.update(year=first, edition_year=edition_year or year)
             n += 1

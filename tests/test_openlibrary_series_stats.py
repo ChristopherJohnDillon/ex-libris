@@ -150,3 +150,20 @@ def test_first_published_and_backfill():
     got = books.get(printed["id"])
     assert (got["year"], got["edition_year"]) == (1955, 2015)
     assert books.get(mine["id"])["year"] == 1950
+
+
+def test_implausible_first_published_years_are_ignored():
+    http = FakeHTTP({"search.json": {"docs": [{"key": "/works/BBQ", "first_publish_year": 1600}]}})
+    c = openlibrary.Client(http_get=http, sleep=lambda s: None)
+    b = books.add({"title": "Smoke and Flames", "ol_key": "/works/BBQ", "year": 2019, "isbn": "9780441013593"})
+    openlibrary.backfill_years(client_=c)
+    assert books.get(b["id"])["year"] == 2019                   # 1600 for a 2019 cookbook is Open Library noise
+
+
+def test_series_names_differing_by_a_leading_article_are_one_series():
+    for n, name in ((1, "The Ripliad"), (2, "The Ripliad"), (3, "Ripliad"), (5, "ripliad")):
+        b = books.add({"title": f"R{n}"})
+        books.update(b["id"], {"series": name, "series_index": n})
+    st = stats.stats()
+    assert len(st["series"]) == 1 and st["series"][0]["missing"] == [4]
+    assert {h["key"]: h for h in stats.highlights(st)}["series"]["value"] == "The Ripliad"
