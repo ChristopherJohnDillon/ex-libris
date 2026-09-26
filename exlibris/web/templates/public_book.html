@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ b.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="/">← All books</a></p>
+<div class="bar" style="align-items:flex-start;gap:24px;flex-wrap:wrap">
+  <div>{% if b.cover_url %}<img class="cover" src="{{ b.cover_url }}" data-title="{{ b.title }}" alt="Cover of {{ b.title }}" style="width:170px;height:255px">{% else %}<div class="spine" style="width:170px;height:255px;font-size:2rem">{{ b.title[:1]|upper }}</div>{% endif %}</div>
+  <div style="flex:1;min-width:240px">
+    <h1>{{ b.title }}</h1>
+    {% if authors %}<p style="margin:0 0 12px">{% for a in authors %}<a href="/author?name={{ a|urlencode }}">{{ a }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    <ul class="odd">
+      {% if b.series %}<li><span class="k">Series</span><span>{{ b.series }}{% if b.series_index is not none %} · {{ b.series_index|int if b.series_index == b.series_index|int else b.series_index }}{% endif %}</span></li>{% endif %}
+      {% if b.genre %}<li><span class="k">Genre</span><span>{{ b.genre }}</span></li>{% endif %}
+      {% if b.year %}<li><span class="k">First published</span><span>{{ b.year }}</span></li>{% endif %}
+      {% if b.format %}<li><span class="k">Format</span><span>{{ b.format }}</span></li>{% endif %}
+      {% if b.publisher %}<li><span class="k">Publisher</span><span>{{ b.publisher }}</span></li>{% endif %}
+      {% if b.pages %}<li><span class="k">Pages</span><span>{{ b.pages }}</span></li>{% endif %}
+      {% if b.isbn %}<li><span class="k">ISBN</span><span>{{ b.isbn }}</span></li>{% endif %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

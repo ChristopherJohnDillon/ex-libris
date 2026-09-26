@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block body_attrs %}data-page="public"{% endblock %}
+{% block content %}
+<div class="bar" style="justify-content:space-between;align-items:baseline"><h1>{{ title }}</h1><span class="muted small" id="count"></span></div>
+<input type="search" id="q" placeholder="Search title, author, ISBN" autocomplete="off" aria-label="Search the books" style="width:100%">
+{% with private = false %}{% include "_browse.html" %}{% endwith %}
+{% endblock %}
+{% block scripts %}<script src="/static/browse.js?v={{ version }}"></script><script src="/static/public.js?v={{ version }}"></script>{% endblock %}
