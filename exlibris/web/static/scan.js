@@ -109,7 +109,8 @@
       return "added";
     } catch (e) { return /Already/.test(e.message) ? "owned" : "failed"; }
   }
-  const line = b => [b.format, b.year, b.publisher].filter(Boolean).map(esc).join(", ") + (b.location ? ` · ${esc(b.location)}` : "");
+  // an edition is told apart by its printing, so show that year (the work's first year is elsewhere)
+  const line = b => [b.format, b.edition_year || b.year, b.publisher].filter(Boolean).map(esc).join(", ") + (b.location ? ` · ${esc(b.location)}` : "");
   async function check(isbn) {
     busy = true; say(`ISBN ${isbn} — checking…`);
     let r; try { r = await send(`/api/own/${encodeURIComponent(isbn)}`); } catch (e) { resume("Couldn't check that one. Try again."); return; }
@@ -130,6 +131,7 @@
         <div class="bar" style="margin-top:12px">${f ? `<button class="btn primary" data-do="add">Add it</button>` : ""}${next}</div>`;
     }
     verdict.hidden = false;
+    say(r.answer === "yes" ? "On your shelf" : r.answer === "other" ? "Another edition is on your shelf" : "Not on your shelf");
     verdict.onclick = async e => {
       const act = e.target.closest("[data-do]")?.dataset.do;
       if (act === "next") resume();
