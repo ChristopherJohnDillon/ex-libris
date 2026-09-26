@@ -73,3 +73,8 @@ def test_home_page_has_scan_buttons(c):
 def test_scanner_compares_editions_by_their_printing_year():
     js = (STATIC / "scan.js").read_text()
     assert "b.edition_year || b.year" in js and 'say(r.answer === "yes"' in js
+
+
+def test_scan_page_can_check_an_isbn_from_the_link():
+    js = (STATIC / "scan.js").read_text()
+    assert 'params.get("isbn")' in js
