@@ -18,6 +18,8 @@
 | ![A book's details](docs/screenshots/edit.jpg) | ![Stats](docs/screenshots/stats.jpg) |
 | ![Do I own this?](docs/screenshots/scan.jpg) | ![The public read-only view](docs/screenshots/public.jpg) |
 
+<p align="center"><img src="docs/screenshots/mobile.jpg" alt="On a phone" width="320"></p>
+
 ## Quick start
 
 You need [Docker](https://docs.docker.com/get-docker/).
