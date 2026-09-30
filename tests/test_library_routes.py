@@ -70,7 +70,7 @@ def test_do_i_own_this(c, monkeypatch):
     assert r["answer"] == "other" and r["others"][0]["format"] == "Hardcover" and r["found"]["format"] == "Paperback"
     _fake_client(monkeypatch, fail=True)
     assert c.get("/api/own/9780141439587").json() == {"answer": "no", "isbn": "9780141439587", "this": [], "others": [],
-                                                       "found": None, "unsure": True}
+                                                       "found": None, "unsure": True, "wish": None}
     assert c.get("/api/own/hello").status_code == 422
 
 

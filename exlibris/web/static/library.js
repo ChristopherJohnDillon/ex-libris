@@ -8,8 +8,19 @@
     const name = document.body.dataset.author, el = $("#more");
     if (!name || !el) return;
     send(`/api/author_works?name=${encodeURIComponent(name)}`).then(works => {
-      el.innerHTML = works.length ? works.map(w => `<li><div class="row" style="cursor:default">${cover(w)}<div><div class="t">${esc(w.title)}</div>
-        <div class="m">${esc(w.year || "")} ${w.owned ? `<span class="owned">You have this</span>` : ""}</div></div><span></span></div></li>`).join("")
+      // anything you don't have can go on your wishlist
+      const mark = (w, i) => w.owned ? `<span class="owned">You have this</span>` : w.wished ? `<span class="wished">On your wishlist</span>` : "";
+      el.onclick = async e => {
+        const btn = e.target.closest("button[data-i]");
+        if (!btn) return;
+        const w = works[+btn.dataset.i];
+        btn.disabled = true;
+        try { await send("/api/wishlist", {method: "POST", headers: JSON_HDR, body: JSON.stringify({title: w.title, authors: name, year: w.year, ol_key: w.ol_key, cover_url: w.cover_url})});
+              btn.outerHTML = `<span class="wished">On your wishlist</span>`; }
+        catch (err) { btn.outerHTML = `<span class="m">${esc(err.message)}</span>`; }
+      };
+      el.innerHTML = works.length ? works.map((w, i) => `<li><div class="row" style="cursor:default">${cover(w)}<div><div class="t">${esc(w.title)}</div>
+        <div class="m">${esc(w.year || "")} ${mark(w, i)}</div></div>${w.owned || w.wished ? "<span></span>" : `<button class="btn" data-i="${i}">Wish</button>`}</div></li>`).join("")
         : `<li class="muted" style="border:0">Open Library lists nothing else.</li>`;
     }).catch(() => { el.innerHTML = `<li class="muted" style="border:0">Couldn't reach Open Library. Try again later.</li>`; });
     return;

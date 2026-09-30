@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Wishlist{% endblock %}
+{% block main_class %}wishpage{% endblock %}
+{% block body_attrs %}data-page="wishlist" data-me="{{ me }}" data-people="{{ people|tojson|forceescape }}"{% endblock %}
+{% block content %}
+<div class="bar" style="justify-content:space-between;align-items:baseline">
+  <h1 class="wish-h"><svg class="i"><use href="#i-heart"/></svg><span id="h">Wishlist</span></h1>
+  <span class="muted small" id="count"></span>
+</div>
+<p class="banner wish-note small">Books you want but don't have yet. They're kept apart from your shelf: not in its search,
+counts, stats or CSV, and never on the public view. <strong>Got it</strong> moves one onto the shelf, notes and all; scanning or
+adding a wished-for book ticks it off too.{% if not me %} <span class="muted">Everyone shares this list. Put the library behind
+Cloudflare Access to give each person their own (see README).</span>{% endif %}</p>
+{% if me and people|length > 1 %}
+<div class="seg" id="people" role="group" aria-label="Whose wishlist" style="margin-bottom:12px">
+  {% for p in people %}<button type="button" data-who="{{ p }}" aria-pressed="false">{{ "You" if p == me else p }}</button>{% endfor %}
+  <button type="button" data-who="*" aria-pressed="false">Everyone</button>
+</div>
+{% endif %}
+<div class="bar">
+  <input type="search" id="q" placeholder="Filter the wishlist" autocomplete="off" aria-label="Filter the wishlist">
+  <a class="btn" href="/scan?mode=wish"><svg class="i"><use href="#i-scan"/></svg> Scan</a>
+  <button class="btn wish-btn" id="toggle-add" aria-expanded="false" aria-controls="add"><svg class="i"><use href="#i-plus"/></svg> Wish for a book</button>
+</div>
+<section id="add" class="panel wish-add" hidden>
+  <div class="bar"><input type="search" id="lq" placeholder="Title, author or ISBN" autocomplete="off" aria-label="Look up a book"></div>
+  <p class="muted small" style="margin:8px 0 0">Searches Open Library as you type. Want a particular edition? Type its ISBN or scan the barcode.</p>
+  <ul class="books" id="lookup"></ul>
+</section>
+<ul class="books wishes" id="wishes"></ul>
+<div class="bar" style="margin-top:18px"><label for="loc" style="margin:0">When you get one, it goes in</label>
+  <input id="loc" list="rooms" placeholder="Room (optional)" autocomplete="off" style="max-width:260px"></div>
+<datalist id="rooms"></datalist>
+{% endblock %}
+{% block scripts %}<script src="/static/wishlist.js?v={{ version }}"></script>{% endblock %}

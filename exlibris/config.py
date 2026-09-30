@@ -14,10 +14,23 @@ class Settings:
     ai_model: str
     ai_key: str
     google_books: bool
+    identity_header: str
+    people: dict
 
 
 def _on(name, default):
     return os.environ.get(name, default).strip().lower() not in ("off", "0", "false", "no")
+
+
+def _people(text):
+    """EXLIBRIS_PEOPLE="Alex=alex@example.com; Sam=sam@example.com,sam@example.org" -> {email: name}"""
+    out = {}
+    for part in (text or "").split(";"):
+        name, _, emails = part.partition("=")
+        for e in emails.split(","):
+            if name.strip() and e.strip():
+                out[e.strip().lower()] = name.strip()
+    return out
 
 
 def settings():
@@ -31,4 +44,8 @@ def settings():
         ai_model=env("EXLIBRIS_AI_MODEL", "").strip(),
         ai_key=env("EXLIBRIS_AI_KEY", "").strip(),
         google_books=_on("EXLIBRIS_GOOGLE_BOOKS", "on"),
+        # who's using the library, for per-person wishlists: the email a login proxy in
+        # front of it passes on (Cloudflare Access by default); "off" = one shared wishlist
+        identity_header=env("EXLIBRIS_IDENTITY_HEADER", "Cf-Access-Authenticated-User-Email").strip(),
+        people=_people(env("EXLIBRIS_PEOPLE", "")),
     )

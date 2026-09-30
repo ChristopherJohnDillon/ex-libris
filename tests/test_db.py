@@ -13,7 +13,7 @@ def test_init_is_idempotent_and_versioned():
     db.init()
     db.init()
     with db.connect() as c:
-        assert c.execute("SELECT version FROM schema_version").fetchone()[0] == db.SCHEMA_VERSION == 2
+        assert c.execute("SELECT version FROM schema_version").fetchone()[0] == db.SCHEMA_VERSION == 3
 
 
 def test_full_text_search_follows_changes():

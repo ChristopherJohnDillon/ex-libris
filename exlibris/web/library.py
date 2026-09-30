@@ -8,8 +8,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from exlibris import config
 import anyio
-from exlibris.core import ai, backup, books, covers, db, openlibrary, stats
-from exlibris.web.common import HERE, add_security_headers, render, same_origin
+from exlibris.core import ai, backup, books, covers, db, openlibrary, stats, wishlist
+from exlibris.web.common import HERE, add_security_headers, person, render, same_origin
 
 @asynccontextmanager
 async def lifespan(app):
@@ -70,6 +70,13 @@ def author(request: Request, name: str = ""):
                                            "private": True, "page": "books"})
 
 
+@app.get("/wishlist", response_class=HTMLResponse)
+def wishlist_page(request: Request):
+    me = person(request)
+    people = sorted(set(wishlist.owners()) | set(config.settings().people.values()) | ({me} if me else set()))
+    return render(request, "wishlist.html", {"page": "wishlist", "me": me, "people": people})
+
+
 @app.get("/import", response_class=HTMLResponse)
 def import_page(request: Request):
     return render(request, "import.html", {"page": "books"})
@@ -94,11 +101,12 @@ def add(book: dict = Body(...)):
     if book.get("cover_url") and not re.fullmatch(r"/cover/" + COVER_NAME.pattern, book["cover_url"]):
         book = {**book, "cover_url": None}                   # only covers this app serves
     try:
-        return books.add(book)
+        b = books.add(book)
     except books.Duplicate as e:
         raise HTTPException(409, f"Already on the shelf as “{e}”.")
     except ValueError as e:
         raise HTTPException(422, str(e))
+    return {**b, "wish_done": wishlist.fulfil(b)}            # a wished-for book that's now on the shelf
 
 
 @app.patch("/api/books/{book_id}", dependencies=WRITE)
@@ -152,8 +160,18 @@ async def upload_cover(book_id: int, file: UploadFile = File(...)):
 
 
 # ---- looking things up ----------------------------------------------------------------
+def mark_wished(rows, request):
+    """`wished`: that ISBN (or, for a title search, that work) is on your wishlist"""
+    isbns, works = wishlist.wished(person(request))
+    return [{**r, "wished": (r["isbn"] in isbns) if r.get("isbn") else r.get("ol_key") in works} for r in rows]
+
+
 @app.get("/api/lookup")
-def lookup(q: str):
+def lookup(request: Request, q: str):
+    return mark_wished(_lookup(q), request)
+
+
+def _lookup(q):
     """Title/author search lists works; an ISBN returns that one edition."""
     q = q.strip()
     isbn = books.isbn13(q)
@@ -175,7 +193,14 @@ def lookup(q: str):
 
 
 @app.get("/api/own/{raw}")
-def own(raw: str):
+def own(request: Request, raw: str):
+    r = _own(raw)
+    if r["answer"] != "yes":
+        r["wish"] = wishlist.match(r["isbn"], (r["found"] or {}).get("ol_key"), person(request))
+    return r
+
+
+def _own(raw):
     """Do I own this? An exact ISBN answers straight from the database (instant in a
     shop); otherwise the edition's work says whether another edition is on the shelf."""
     isbn = books.isbn13(raw)
@@ -196,9 +221,9 @@ def own(raw: str):
 
 
 @app.get("/api/author_works")
-def author_works(name: str):
+def author_works(request: Request, name: str):
     try:
-        return ol().author_works(name.strip())
+        return mark_wished(ol().author_works(name.strip()), request)
     except openlibrary.Unavailable:
         raise HTTPException(502, "Couldn't reach Open Library.")
 
@@ -206,6 +231,63 @@ def author_works(name: str):
 @app.get("/api/locations")
 def rooms():
     return books.locations()
+
+
+# ---- wishlist -------------------------------------------------------------------------
+@app.get("/api/wishlist")
+def wishes(request: Request, who: str = ""):
+    """Yours (or the shared list); ?who=<name> someone else's, ?who=* everyone's."""
+    return wishlist.list_wishes(None if who == "*" else (who or person(request)))
+
+
+@app.post("/api/wishlist", status_code=201, dependencies=WRITE)
+def add_wish(request: Request, book: dict = Body(...)):
+    if book.get("cover_url") and not re.fullmatch(r"/cover/" + COVER_NAME.pattern, str(book["cover_url"])):
+        book = {**book, "cover_url": None}
+    me = person(request)
+    # adding to someone else's list (a present idea) only works when people are known
+    owner = str(book.get("owner") or me) if me else ""
+    try:
+        return wishlist.add(book, owner)
+    except books.Duplicate:
+        raise HTTPException(409, "Already on your wishlist" if owner == me else f"Already on {owner}'s wishlist")
+    except wishlist.Owned:
+        raise HTTPException(409, "You already have this edition on the shelf")
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+@app.patch("/api/wishlist/{wish_id}", dependencies=WRITE)
+def edit_wish(wish_id: int, changes: dict = Body(...)):
+    try:
+        w = wishlist.update(wish_id, changes)
+    except books.Duplicate as e:
+        raise HTTPException(409, f"That ISBN is already on the wishlist as “{e}”.")
+    except (ValueError, TypeError) as e:
+        raise HTTPException(422, str(e))
+    if w is None:
+        raise HTTPException(404, "No such wish")
+    return w
+
+
+@app.delete("/api/wishlist/{wish_id}", status_code=204, dependencies=WRITE)
+def remove_wish(wish_id: int):
+    if not wishlist.delete(wish_id):
+        raise HTTPException(404, "No such wish")
+    return Response(status_code=204)
+
+
+@app.post("/api/wishlist/{wish_id}/got", dependencies=WRITE)
+def got_it(wish_id: int, body: dict = Body(default={})):
+    """{"location": "Lounge"} optional: the room it goes in"""
+    loc = str(body.get("location") or "").strip() or None
+    try:
+        out = wishlist.got_it(wish_id, loc)
+    except books.Duplicate as e:
+        raise HTTPException(409, f"Already on the shelf as “{e}”.")
+    if out is None:
+        raise HTTPException(404, "No such wish")
+    return {"book": out[0], "already": out[1]}
 
 
 # ---- import / export / backup ---------------------------------------------------------
@@ -244,7 +326,8 @@ async def cover(name: str):
     path = covers.covers_dir() / f"{name}.jpg"
     if not path.exists() and name.isdigit():
         with db.connect() as c:                  # only covers a book uses: not a proxy for any Open Library id
-            used = c.execute("SELECT 1 FROM books WHERE cover_url = ?", (f"/cover/{name}",)).fetchone()
+            used = c.execute("SELECT 1 FROM books WHERE cover_url = ?1 UNION ALL SELECT 1 FROM wishlist WHERE cover_url = ?1",
+                             (f"/cover/{name}",)).fetchone()
         data = await anyio.to_thread.run_sync(_fetch_cover, int(name), limiter=COVER_FETCHES) if used else None
         if not data:
             raise HTTPException(404, "no cover")

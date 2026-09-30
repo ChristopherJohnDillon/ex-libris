@@ -5,7 +5,7 @@ import tempfile
 from contextlib import contextmanager
 from exlibris import config
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 MIGRATIONS = {
     1: """
     BEGIN;
@@ -57,6 +57,30 @@ MIGRATIONS = {
     BEGIN;
     ALTER TABLE books ADD COLUMN edition_year INTEGER;
     ALTER TABLE books ADD COLUMN year_checked INTEGER;
+    """,
+    3: """
+    BEGIN;
+    CREATE TABLE wishlist (
+        id INTEGER PRIMARY KEY,
+        owner TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL,
+        authors TEXT,
+        year INTEGER,
+        edition_year INTEGER,
+        isbn TEXT,
+        publisher TEXT,
+        format TEXT,
+        pages INTEGER,
+        cover_url TEXT,
+        ol_key TEXT,
+        edition_key TEXT,
+        series TEXT,
+        series_index REAL,
+        notes TEXT,
+        added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE UNIQUE INDEX wishlist_owner_isbn ON wishlist(owner, isbn);
+    CREATE INDEX wishlist_work ON wishlist(ol_key);
     """,
 }
 

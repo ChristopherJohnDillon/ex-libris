@@ -6,14 +6,14 @@
   let stream = null, detector = null, reader = null, busy = false, running = false, last = {code: "", at: 0};
   const say = t => { $("#msg").textContent = t; };
   const room = () => $("#loc").value.trim();
-  const added = t => `Added${room() ? ` to ${room()}` : ""}: ${t}`;
+  const added = t => `Added${room() ? ` to ${room()}` : ""}: ${t}${wishDone.length ? " · ticked off the wishlist" : ""}`;
 
   // ---- mode + settings ------------------------------------------------------
   const params = new URLSearchParams(location.search);
   let mode = params.get("mode") || store.get("xl.mode", "add");
-  if (!["check", "add"].includes(mode)) mode = "add";
+  if (!["check", "add", "wish"].includes(mode)) mode = "add";       // wish: what you scan goes on the wishlist, never the shelf
   function setMode(m) {
-    mode = m; document.body.classList.toggle("check", m === "check");
+    mode = m; document.body.classList.toggle("check", m === "check"); document.body.classList.toggle("wish", m === "wish");
     document.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
     store.set("xl.mode", m); verdict.hidden = true;
   }
@@ -101,11 +101,27 @@
     handle(isbn);
   }
   function resume(text) { card.hidden = true; card.innerHTML = ""; verdict.hidden = true; busy = false; say(text || "Point at the barcode on the back of a book"); }
+  let wishDone = [];
+  function logged(b, head) {
+    $("#loghead").hidden = false; $("#loghead").textContent = head;
+    $("#log").insertAdjacentHTML("afterbegin", `<li><div class="row" style="cursor:default">${cover(b)}<div><div class="t">${esc(b.title)}</div><div class="a">${esc(b.authors)}</div></div><span></span></div></li>`);
+  }
+  async function addWish(book) {                              // -> the message to show
+    try {
+      const w = await send("/api/wishlist", {method: "POST", headers: JSON_HDR, body: JSON.stringify(book)});
+      logged(w, "Wished for this session");
+      return `On your wishlist: ${w.title}`;
+    } catch (e) { return e.message; }
+  }
+  const wishLine = r => !r.wish ? "" : `<p class="wished" style="margin:10px 0 0">${r.wish.isbn && r.wish.isbn !== r.isbn ? "A different edition is" : "It's"} on
+    ${r.wish.mine ? "your" : `${esc(r.wish.owner)}'s`} wishlist</p>${r.wish.notes ? `<div class="m" style="white-space:pre-wrap">${esc(r.wish.notes)}</div>` : ""}`;
+  const wishBtn = r => r.wish && r.wish.mine ? "" : `<button class="btn" data-do="wish">Add to wishlist</button>`;
   async function add(book) {
     if (room() && !book.location) book = {...book, location: room()};
     try {
       const b = await send("/api/books", {method: "POST", headers: JSON_HDR, body: JSON.stringify(book)});
-      $("#loghead").hidden = false;
+      wishDone = b.wish_done || [];
+      $("#loghead").hidden = false; $("#loghead").textContent = "Added this session";
       $("#log").insertAdjacentHTML("afterbegin", `<li><div class="row" style="cursor:default">${cover(b)}<div><div class="t">${esc(b.title)}</div><div class="a">${esc(b.authors)}</div></div><span></span></div></li>`);
       return "added";
     } catch (e) { return /Already/.test(e.message) ? "owned" : "failed"; }
@@ -122,14 +138,14 @@
     } else if (r.answer === "other") {
       verdict.className = "verdict other";
       verdict.innerHTML = `<div class="big">You have a different edition</div><div class="t" style="margin-top:6px">${esc(r.found.title)}</div>
-        <div class="m">This one: ${line(r.found) || "edition details unknown"}</div><ul>${r.others.map(o => `<li>You have: ${line(o) || esc(o.title)}</li>`).join("")}</ul>
-        <div class="bar" style="margin-top:12px"><button class="btn" data-do="add">Add this edition too</button>${next}</div>`;
+        <div class="m">This one: ${line(r.found) || "edition details unknown"}</div><ul>${r.others.map(o => `<li>You have: ${line(o) || esc(o.title)}</li>`).join("")}</ul>${wishLine(r)}
+        <div class="bar" style="margin-top:12px"><button class="btn" data-do="add">Add this edition too</button>${wishBtn(r)}${next}</div>`;
     } else {
       verdict.className = "verdict";
       const f = r.found;
       verdict.innerHTML = `<div class="big">Not on your shelf</div>${f ? `<div class="t" style="margin-top:6px">${esc(f.title)}</div><div class="m">${line(f)}</div>` : ""}
-        ${r.unsure ? `<p class="m">Open Library didn't answer, so other editions weren't checked.</p>` : ""}
-        <div class="bar" style="margin-top:12px">${f ? `<button class="btn primary" data-do="add">Add it</button>` : ""}${next}</div>`;
+        ${r.unsure ? `<p class="m">Open Library didn't answer, so other editions weren't checked.</p>` : ""}${wishLine(r)}
+        <div class="bar" style="margin-top:12px">${f ? `<button class="btn primary" data-do="add">Add it</button>${wishBtn(r)}` : ""}${next}</div>`;
     }
     verdict.hidden = false;
     say(r.answer === "yes" ? "On your shelf" : r.answer === "other" ? "Another edition is on your shelf" : "Not on your shelf");
@@ -137,6 +153,7 @@
       const act = e.target.closest("[data-do]")?.dataset.do;
       if (act === "next") resume();
       if (act === "add") { e.target.disabled = true; const res = await add({...r.found, isbn}); resume(res === "added" ? added(r.found.title) : res === "owned" ? "Already on the shelf" : "Couldn't add that one."); }
+      if (act === "wish") { e.target.disabled = true; resume(await addWish({...r.found, isbn})); }
     };
   }
   function showCard(html, onclick) { card.innerHTML = html; card.hidden = false; card.onclick = onclick; }
@@ -149,12 +166,15 @@
     const b = rows[0];
     if (!b) {
       showCard(`<div class="t">Not on Open Library</div><div class="m">ISBN ${esc(isbn)}</div><input id="mtitle" placeholder="Title" style="width:100%;margin-top:8px">
-        <div class="bar" style="margin-top:10px"><button class="btn primary" data-do="add">Add with this title</button><button class="btn" data-do="skip">Skip</button></div>`,
+        <div class="bar" style="margin-top:10px"><button class="btn primary" data-do="add">${mode === "wish" ? "Wish for it with this title" : "Add with this title"}</button><button class="btn" data-do="skip">Skip</button></div>`,
         async e => { const act = e.target.closest("[data-do]")?.dataset.do; if (act === "skip") resume();
-          if (act === "add") { const title = $("#mtitle").value.trim(); if (!title) return $("#mtitle").focus(); const res = await add({title, isbn}); resume(res === "added" ? added(title) : "Couldn't add that one."); } });
+          if (act === "add") { const title = $("#mtitle").value.trim(); if (!title) return $("#mtitle").focus();
+            if (mode === "wish") return resume(await addWish({title, isbn}));
+            const res = await add({title, isbn}); resume(res === "added" ? added(title) : "Couldn't add that one."); } });
       say("Not found — add it by title, or skip"); return;
     }
     b.isbn = isbn;
+    if (mode === "wish") return showWish(b);
     if (b.owned) { if (auto) return resume(`This edition is already on the shelf: ${b.title}`); }
     else if (auto) { const res = await add(b); return resume(res === "added" ? added(b.title) : res === "owned" ? "Already on the shelf" : "Couldn't add that one."); }
     showCard(`<div class="bar" style="align-items:flex-start;flex-wrap:nowrap">${cover(b)}<div><div class="t">${esc(b.title)}</div><div class="a">${esc(b.authors)}</div><div class="m">${line(b)}</div>
@@ -163,6 +183,18 @@
         : `<button class="btn primary" data-do="add">${b.other_edition ? "Add this edition" : "Add to shelf"}</button><button class="btn" data-do="skip">Skip</button>`}</div></div></div>`,
       async e => { const act = e.target.closest("[data-do]")?.dataset.do; if (act === "skip") resume();
         if (act === "add") { e.target.disabled = true; const res = await add(b); resume(res === "added" ? added(b.title) : res === "owned" ? "Already on the shelf" : "Couldn't add that one."); } });
+    say("Found it");
+  }
+  function showWish(b) {
+    const can = !b.owned && !b.wished;
+    showCard(`<div class="bar" style="align-items:flex-start;flex-wrap:nowrap">${cover(b)}<div style="flex:1;min-width:0"><div class="t">${esc(b.title)}</div><div class="a">${esc(b.authors)}</div><div class="m">${line(b)}</div>
+      ${b.owned ? `<div class="owned">This edition is already on your shelf</div>` : b.other_edition ? `<div class="m" style="color:var(--warn)">You have another edition of this.</div>` : ""}
+      ${b.wished ? `<div class="wished">Already on your wishlist</div>` : ""}
+      ${can ? `<textarea id="wnotes" placeholder="Notes (optional): who recommended it, price…" aria-label="Notes" style="width:100%;margin-top:8px;min-height:40px"></textarea>` : ""}
+      <div class="bar" style="margin-top:10px">${can ? `<button class="btn primary" data-do="wish">Add to wishlist</button><button class="btn" data-do="skip">Skip</button>`
+        : `<button class="btn" data-do="skip">Scan next</button>`}</div></div></div>`,
+      async e => { const act = e.target.closest("[data-do]")?.dataset.do; if (act === "skip") resume();
+        if (act === "wish") { e.target.disabled = true; resume(await addWish({...b, notes: $("#wnotes").value})); } });
     say("Found it");
   }
   $("#manual").addEventListener("submit", e => {

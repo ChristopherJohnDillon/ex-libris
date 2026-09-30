@@ -40,6 +40,19 @@ def same_origin(request: Request):
         raise HTTPException(403, "cross-origin request refused")
 
 
+def person(request):
+    """Who's using the library, for per-person wishlists: the email a login proxy puts
+    in EXLIBRIS_IDENTITY_HEADER (Cloudflare Access sends Cf-Access-Authenticated-User-Email),
+    shown as its EXLIBRIS_PEOPLE name if it has one. '' (everyone shares one wishlist)
+    when there's no such proxy. Only a label, not a login: anyone who can reach the
+    library can already change everything in it."""
+    s = config.settings()
+    if s.identity_header.lower() in ("", "off"):
+        return ""
+    email = (request.headers.get(s.identity_header) or "").strip().lower()
+    return s.people.get(email, email) if email else ""
+
+
 def render(request, name, ctx=None, headers=None):
     resp = templates.TemplateResponse(request, name, {"title": config.settings().title, **(ctx or {})})
     for k, v in (headers or {}).items():

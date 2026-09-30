@@ -153,3 +153,22 @@ th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); 
   ul.books { grid-template-columns:1fr; }
   ul.wall { grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:14px 10px; }
 }
+
+/* ---- wishlist: gold and dashed, so it never looks like books you own ---- */
+.wish-h { display:flex; align-items:center; gap:10px; }
+.wish-h svg.i, .top nav a .wish-i { color:var(--warn); }
+.wish-h svg.i { width:30px; height:30px; }
+.wish-note { border-left-color:var(--warn); }
+.btn.wish-btn { border-color:var(--warn); color:var(--warn); border-style:dashed; font-weight:600; }
+.wish-add { border:1px dashed color-mix(in srgb, var(--warn) 55%, transparent); }
+ul.wishes .cover { outline:1px dashed color-mix(in srgb, var(--warn) 60%, transparent); outline-offset:2px; }
+ul.wishes .spine { color:var(--warn); border:1px dashed color-mix(in srgb, var(--warn) 60%, transparent); }
+ul.wishes textarea { width:100%; margin-top:8px; min-height:40px; resize:vertical; font-size:16px; }
+ul.wishes .acts { display:flex; flex-direction:column; gap:6px; }
+.btn.got { border-color:var(--ok); color:var(--ok); font-weight:600; }
+.wished { color:var(--warn); font-weight:600; font-size:.88rem; white-space:nowrap; }
+.tag.wish-tag { background:color-mix(in srgb, var(--warn) 18%, var(--panel)); color:var(--warn); }
+body.wish .addonly { display:none; }
+@media (max-width:560px) { ul.wishes .acts { flex-direction:row; } }
+main.wishpage { max-width:900px; }
+ul.books.wishes { grid-template-columns:1fr; }

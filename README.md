@@ -9,6 +9,7 @@
 - **Editions, properly.** A paperback and a hardback of the same book are two copies, each with its own cover, year and publisher.
 - **Covers found for you** from Open Library and Google Books, or take a photo of your own.
 - **Browse** as a cover wall or a list, grouped by author, genre, series (with the gaps: *missing 4, 7*), decade or room.
+- **A wishlist**, kept apart from your shelf: add by search, by scanning a barcode in a shop, or from an author's other books; jot notes; **Got it** moves it onto the shelf. One each if you sign in through Cloudflare Access (see [Wishlists](#wishlists)).
 - **Stats** that are fun to look at: pages, shelf length, most-collected author, favourite decade and more.
 - **A read-only public view** you can share, on its own port, that can't change anything.
 - **Yours:** one small container, one data folder, CSV import and export, nightly backups. No accounts, no tracking.
@@ -80,12 +81,28 @@ All optional, as environment variables in `compose.yaml`:
 | `EXLIBRIS_PUBLIC` | `on` | `off` turns the public view (port 8081) off |
 | `EXLIBRIS_OPENLIBRARY_CONTACT` | | Your email, sent to Open Library with lookups; they allow faster lookups for identified apps |
 | `EXLIBRIS_GOOGLE_BOOKS` | `on` | `off` stops using Google Books to find missing covers |
+| `EXLIBRIS_PEOPLE` | | Names for per-person wishlists, e.g. `Alex=alex@example.com; Sam=sam@example.com,sam@example.org` (see [Wishlists](#wishlists)) |
+| `EXLIBRIS_IDENTITY_HEADER` | `Cf-Access-Authenticated-User-Email` | The header your login proxy puts the signed-in email in; `off` for one shared wishlist |
 | `EXLIBRIS_AI_URL` | | Optional AI, see below |
 | `EXLIBRIS_AI_MODEL` / `EXLIBRIS_AI_KEY` | | Model name / API key for the AI server |
 | `PUID` / `PGID` | `1000` | The user and group that own the files in `./data` (see [Data folder](#data-folder)) |
 | `EXLIBRIS_PORT` / `EXLIBRIS_PUBLIC_PORT` | `8080` / `8081` | Ports inside the container, if you need different ones |
 | `EXLIBRIS_HOST` | `0.0.0.0` | Address the servers listen on inside the container |
 | `TZ` | `Etc/UTC` | Time zone (for loan dates and backup file names) |
+
+## Wishlists
+
+**Wishlist** (in the menu) is for books you want but don't have. It's kept apart from the shelf: wished-for books aren't in its search, counts, stats or CSV, and never appear on the public view.
+
+- Add them by searching, with the scanner's **Wishlist** mode (handy in a bookshop), or with **Wish** on an author's page. **Do I own this?** also says when a scanned book is on a wishlist, with your notes.
+- Each wish has a notes box: who recommended it, where you saw it, the price.
+- **Got it** moves a wish onto the shelf, notes included. Adding a wished-for book any other way (scanning it, say) ticks it off too: the same ISBN, or any edition when the wish didn't name one.
+
+**One list, or one each.** Out of the box everyone shares one wishlist, since Ex Libris has no accounts. If the library sits behind **Cloudflare Access** (see [Security](#security)), each person gets their own list with nothing more to set up. Access tells Ex Libris who signed in, in the `Cf-Access-Authenticated-User-Email` header. You can then look at each other's lists (handy for presents) and add to them.
+
+- Emails show as they are. To show names, and to put two emails on one list: `EXLIBRIS_PEOPLE=Alex=alex@example.com; Sam=sam@example.com,sam@example.org`.
+- Another login proxy (oauth2-proxy, Authelia, `tailscale serve`)? Set `EXLIBRIS_IDENTITY_HEADER` to the header it sends the email in (e.g. `X-Forwarded-Email`, `Remote-Email`, `Tailscale-User-Login`).
+- The header only decides whose list you see; it isn't a login. Anyone who can reach port 8080 can already change everything, so keep the protection in front of it (see [Security](#security)). Set `EXLIBRIS_IDENTITY_HEADER=off` to ignore it.
 
 ## Optional AI
 

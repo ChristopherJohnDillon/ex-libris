@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+- **Wishlist**: books you want, kept apart from the shelf (not in its search, stats, CSV or the public view). Add by search, with the scanner's new Wishlist mode, or with **Wish** on an author's page. Notes on each wish. **Got it** moves a wish onto the shelf, and adding a wished-for book any other way ticks it off.
+- **Do I own this?** says when a scanned book is on a wishlist, and can add it to yours.
+- Per-person wishlists when the library is behind Cloudflare Access (or another login proxy that passes the signed-in email; see `EXLIBRIS_IDENTITY_HEADER`), with optional names from `EXLIBRIS_PEOPLE`. Without one, everyone shares one list, as before.
+
 ## 1.0.1
 
 Fixes from a full review of 1.0.0:
